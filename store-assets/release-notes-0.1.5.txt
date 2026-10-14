@@ -1,0 +1,39 @@
+EvenScriptable 0.1.5 — release notes (package com.liyiyuian.evenscriptable, SDK 0.0.16; bridge 0.1.1)
+
+HUB CHANGELOG — if 0.1.4 is LIVE when you upload this (paste into the version's changelog field)
+------------------------------------------------------------------
+Fixes: a long line with no spaces (like printed JSON) no longer freezes the app; saved scripts and Keychain values are never overwritten when they couldn't be read at launch; a script stopped mid-run no longer leaves "Running…" on the phone; scripts can name their own variables config, args or Path.
+Requires Even Realities app 2.2.10 or later.
+------------------------------------------------------------------
+
+HUB CHANGELOG — if 0.1.4 is NOT live (still in review or rejected): use this instead
+------------------------------------------------------------------
+First version: add JavaScript scripts on your phone and run them on your glasses. Many Scriptable scripts work as they are; long output scrolls smoothly; starred scripts sit at the top; web requests go through an optional bridge on your own computer. Comes with one example, Time of day.
+Requires Even Realities app 2.2.10 or later.
+------------------------------------------------------------------
+
+FULL LOG (since 0.1.4; earlier versions: release-notes-0.1.4.txt)
+App:
+- Wrapping a long word with no spaces took minutes and froze the page (even double-tap couldn't exit);
+  it now takes milliseconds. Output over 20,000 characters is cut and says so.
+- If saved data couldn't be read at launch, the app treated it as empty and the next save overwrote it.
+  Now it retries, never overwrites what it couldn't read, and says so on the phone and the glasses.
+  Large values are saved atomically (a failed save keeps the old value).
+- Screen updates no longer interleave (a stopped run's output could stay on the glasses).
+- A run whose Keychain/file save fails ends with that error instead of staying "running".
+- Scripts may declare their own `config`, `args`, `Path`, `module`, … (they shadow the built-ins).
+- The phone shows errors from any button; "Running…" clears however a run ends; Save and Import can't
+  run twice on a double tap.
+- The glasses menu gains Next/Previous part when an output grows; empty output is drawn as a space;
+  Alert/UITable titles get up to 4 lines; menu names are cut on whole characters; the final output keeps
+  the part you were reading; unknown gesture types are ignored instead of acting as a tap.
+- Scripts can't use the Worker's own fetch/XMLHttpRequest/WebSocket (only Request, through the bridge);
+  if the Worker can't start, scripts don't run at all (they used to fall back to the page).
+- A screen update the glasses don't answer is redrawn 2 s later (a slow start could leave them blank).
+Bridge 0.1.1 (security):
+- Failed relays no longer print tracebacks (which could contain the requested URL) to your computer's log;
+  every error gets a JSON answer. Negative or bogus Content-Length is refused. Log lines are escaped.
+- Redirects are followed (http/https only), dropping Authorization and Cookie when the host changes.
+- install.sh no longer installs a scriptbridge.py lying in the folder you run it from.
+To update your bridge: run the one-line installer again (it keeps your password and settings):
+  curl -fsSL https://raw.githubusercontent.com/liyiyuian/evenScriptable/main/bridge/install.sh | bash
