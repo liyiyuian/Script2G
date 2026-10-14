@@ -1,0 +1,73 @@
+evenScriptable — Even Hub store listing (copy-and-paste)
+========================================================
+
+
+APP NAME
+--------
+Script Runner
+(The display name. "evenScriptable" can't be used here: Even rejects names that contain "Even",
+and "Scriptable" is another developer's app. Repo, project and package id stay evenScriptable.)
+
+
+SUBTITLE / TAGLINE
+------------------
+Run your own JavaScript scripts on your glasses
+
+
+SHORT DESCRIPTION
+-----------------
+Add JavaScript scripts on your phone and run them on your G2 glasses: widgets as text, lists you
+pick from, live updates. Many Scriptable scripts run as they are. An optional bridge on your own
+computer fetches web data for them over your own Tailscale network.
+
+
+DESCRIPTION
+-----------
+Run your own little programs on your glasses. Add a JavaScript script on your phone (paste it, or import it from your computer) and run it from the glasses list.
+
+Inspired by Scriptable, the iOS automation app by Simon B. Støvring. I'm a heavy Scriptable user and wanted the same on my G2. This app is independent and not affiliated with Scriptable or its developer.
+
+Many Scriptable scripts work as they are:
+• ListWidget widgets show as text; Alert and UITable become a list you pick from.
+• Request, Keychain, FileManager, DateFormatter, Timer, importModule and the widget parameter work.
+• Live scripts update on the glasses while they run.
+• Calendar, Reminders, Contacts, Location, Photos and notifications need iOS itself, so they aren't available; scripts that use them say so clearly.
+
+Gestures: tap = run, swipe = move or scroll, double-tap = back (on the list: exit). Tap then hold opens a menu with your favourite scripts. A start script can open as soon as you launch the app.
+
+Web requests: the Even app only lets the plugin reach approved addresses, so scripts fetch the web through an optional bridge you run on your own computer, reachable only over your own Tailscale network and protected by a password. Install it with one command from github.com/liyiyuian/evenScriptable. Scripts that don't fetch anything need no computer.
+
+Private by design: no accounts, no analytics, and the developer runs no server. Your scripts and Keychain values are stored on your phone in the Even app (not the iOS Keychain, so treat them as less protected). Scripts you add can read your Keychain values and use your bridge, so only add scripts you trust.
+
+Requires the Even Realities app 2.2.10 or later. iPhone only for now.
+
+
+CATEGORY
+--------
+Productivity (Developer tools)
+
+
+PERMISSIONS (justifications)
+----------------------------
+network — Connects only to the bridge you install on your own computer, over your own Tailscale
+network (https://<your-computer>.<your-tailnet>.ts.net:8447). The bridge fetches web data for your
+scripts and shares a folder of scripts you can import. No other servers are contacted by the app.
+
+
+PRIVACY POLICY
+--------------
+Full policy: https://raw.githubusercontent.com/liyiyuian/evenScriptable/main/store-assets/privacy.txt
+In short: no accounts, no analytics, the developer operates no server and collects nothing. Scripts,
+Keychain values and the bridge address/password are stored on your phone. Web requests go from your
+phone to your own computer's bridge over your own Tailscale network, then to the sites your scripts ask
+for.
+
+
+TERMS & CONDITIONS
+------------------
+evenScriptable (Script Runner) is provided "as is", without warranty of any kind. You choose and add
+the scripts it runs and are responsible for them and for what they access. The optional bridge runs on
+your own computer; you are responsible for installing and securing it (keep the password secret, keep it
+tailnet-only). The developer hosts no service and stores no data. Not affiliated with, endorsed by, or
+sponsored by Scriptable, Simon B. Støvring, or Tailscale. To the maximum extent permitted by law, the
+developer is not liable for any damages arising from use.

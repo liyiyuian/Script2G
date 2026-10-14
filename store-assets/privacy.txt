@@ -1,0 +1,29 @@
+evenScriptable (Script Runner) — Privacy Policy
+Last updated: 2026-10-14
+
+Summary: the developer operates no server and collects no data. No accounts, no analytics, no tracking.
+
+What the app stores, and where
+- The scripts you add, the values you put in its Keychain section, files your scripts save with
+  FileManager, and the address and password of your bridge are stored on your phone, inside the Even
+  Realities app's storage for this app. They are removed when you uninstall the app.
+- This storage is not the iOS Keychain and is not separately encrypted by the app. Scripts you add can
+  read all of it, so only add scripts you trust.
+
+Network
+- The app's only network permission is to reach the bridge you install on your own computer, over your
+  own Tailscale network. The developer never receives these requests.
+- When a script makes a web request, your phone sends it to your bridge, and your computer fetches the
+  address the script asked for. What those sites receive is up to the scripts you run.
+- The bridge logs only the method, path and status of each request on your computer (no addresses,
+  headers or contents).
+
+Glasses
+- The app shows text on your Even G2 glasses and receives your gestures. It does not use the
+  microphone, camera, location or your Even account details.
+
+Children
+- The app is not directed at children and collects no personal information.
+
+Contact
+- Questions: open an issue at https://github.com/liyiyuian/evenScriptable/issues

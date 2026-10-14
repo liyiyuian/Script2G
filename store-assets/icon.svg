@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- evenScriptable app icon: { ▶ } = run a script. One green hue on dark (Even wants a legible, monochrome icon). -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0e1814"/>
+      <stop offset="1" stop-color="#070b09"/>
+    </linearGradient>
+    <linearGradient id="glyph" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#46f594"/>
+      <stop offset="1" stop-color="#12a85c"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- glasses lens / HUD viewport, as in the sibling apps' icons -->
+  <circle cx="256" cy="256" r="176" fill="none" stroke="#16c46a" stroke-opacity="0.22" stroke-width="10"/>
+  <g transform="translate(256,256)" fill="none" stroke="url(#glyph)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M -72,-120 C -108,-120 -108,-100 -108,-64 L -108,-26 C -108,-8 -120,0 -136,0 C -120,0 -108,8 -108,26 L -108,64 C -108,100 -108,120 -72,120"/>
+    <path d="M 72,-120 C 108,-120 108,-100 108,-64 L 108,-26 C 108,-8 120,0 136,0 C 120,0 108,8 108,26 L 108,64 C 108,100 108,120 72,120"/>
+  </g>
+  <path transform="translate(256,256)" d="M -34,-56 L 58,0 L -34,56 Z" fill="url(#glyph)" stroke="url(#glyph)" stroke-width="10" stroke-linejoin="round"/>
+</svg>
