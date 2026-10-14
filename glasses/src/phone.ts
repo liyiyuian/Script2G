@@ -18,6 +18,7 @@ const PAGE = `
 <header class="top">
   <h1>EvenScriptable</h1>
   <p class="dim">Your JavaScript, on your G2 glasses.</p>
+  <p id="notice" class="notice" hidden></p>
   <nav class="tabs">
     <button class="tab" data-tab="scripts">Scripts</button>
     <button class="tab" data-tab="computer">Computer</button>
@@ -85,9 +86,25 @@ function confirmButton(label: string, onConfirm: () => void | Promise<void>, cls
       return
     }
     clearTimeout(armed)
-    await onConfirm()
+    await safe(onConfirm)()
   }
   return b
+}
+
+/** Shows a failure from any button (e.g. storage that couldn't be read) instead of losing it. */
+function report(e: unknown) {
+  const n = $('#notice')
+  n.textContent = e instanceof Error ? e.message : String(e)
+  n.hidden = false
+}
+
+/** An async click handler whose errors are shown in the notice line. */
+const safe = <A extends unknown[]>(fn: (...a: A) => Promise<unknown> | unknown) => async (...a: A) => {
+  try {
+    await fn(...a)
+  } catch (e) {
+    report(e)
+  }
 }
 
 function showTab(name: string) {
@@ -124,7 +141,7 @@ export function renderScripts() {
       onclick: () => {
         running.add(s.name)
         renderScripts()
-        void runOnGlasses(s.id)
+        void runOnGlasses(s.id).catch(report).finally(() => { running.delete(s.name); renderScripts() })
       },
     })
     const more = el('div', { className: 'more' })
@@ -132,11 +149,11 @@ export function renderScripts() {
     more.append(
       el('button', {
         textContent: s.fav ? '★ Unstar' : '☆ Star (top of the list + glasses menu)',
-        onclick: async () => { s.fav = !s.fav; await store.saveIndex(); renderScripts(); await refresh() },
+        onclick: safe(async () => { s.fav = !s.fav; await store.saveIndex(); renderScripts(); await refresh() }),
       }),
       el('button', {
         textContent: store.startId === s.id ? "Don't open at launch" : 'Open at launch',
-        onclick: async () => { await store.setStart(store.startId === s.id ? '' : s.id); renderScripts() },
+        onclick: safe(async () => { await store.setStart(store.startId === s.id ? '' : s.id); renderScripts() }),
       }),
       confirmButton('Delete', async () => {
         await store.deleteScript(s.id)
@@ -178,6 +195,19 @@ function closeEditor() {
 }
 
 async function saveEditor() {
+  const btn = $<HTMLButtonElement>('#ed-save')
+  if (btn.disabled) return
+  btn.disabled = true // a double tap must not save twice
+  try {
+    await saveEditorOnce()
+  } catch (e) {
+    $('#ed-status').textContent = e instanceof Error ? e.message : String(e)
+  } finally {
+    btn.disabled = false
+  }
+}
+
+async function saveEditorOnce() {
   const say = (t: string) => { $('#ed-status').textContent = t }
   const name = $<HTMLInputElement>('#ed-name').value.trim()
   const code = $<HTMLTextAreaElement>('#ed-code').value
@@ -212,12 +242,20 @@ async function showImports() {
         className: 'accent',
         onclick: async (e: MouseEvent) => {
           const btn = e.currentTarget as HTMLButtonElement
+          if (btn.disabled) return
+          btn.disabled = true // a double tap must not import twice
           btn.textContent = 'Importing…'
-          const old = store.scripts.find(s => s.name === name)
-          await store.saveScript(old ?? { id: uuid(), name, fav: false }, await bridgeScript(name))
-          btn.textContent = 'Imported ✓'
-          renderScripts()
-          await refresh()
+          try {
+            const old = store.scripts.find(s => s.name === name)
+            await store.saveScript(old ?? { id: uuid(), name, fav: false }, await bridgeScript(name))
+            btn.textContent = 'Imported ✓'
+            renderScripts()
+            await refresh()
+          } catch (err) {
+            btn.textContent = 'Import'
+            btn.disabled = false
+            report(err)
+          }
         },
       }))))
     box.replaceChildren(...(rows.length ? rows : [el('li', { className: 'dim', textContent: 'The scripts folder on your computer has no .js files (or none is set).' })]))
@@ -278,7 +316,7 @@ export function mountPhone(root: HTMLElement) {
   $('#ed-save').onclick = () => void saveEditor()
   $('#ed-cancel').onclick = closeEditor
 
-  $('#key-add').onclick = async () => {
+  $('#key-add').onclick = safe(async () => {
     const k = $<HTMLInputElement>('#key').value.trim()
     const v = $<HTMLInputElement>('#val').value
     if (!k || !v) return void ($('#key-status').textContent = 'Fill in both the name and the value.')
@@ -287,7 +325,7 @@ export function mountPhone(root: HTMLElement) {
     $<HTMLInputElement>('#key').value = $<HTMLInputElement>('#val').value = ''
     $('#key-status').textContent = `Saved "${k}".`
     renderKeys()
-  }
+  })
 
   $<HTMLInputElement>('#b-url').value = store.bridge?.url ?? ''
   $<HTMLInputElement>('#b-token').value = store.bridge?.token ?? ''
@@ -296,7 +334,7 @@ export function mountPhone(root: HTMLElement) {
     t.type = t.type === 'password' ? 'text' : 'password'
     $('#b-show').textContent = t.type === 'password' ? 'Show' : 'Hide'
   }
-  $('#b-save').onclick = async () => {
+  $('#b-save').onclick = safe(async () => {
     const url = $<HTMLInputElement>('#b-url').value.trim().replace(/\/+$/, '')
     const token = $<HTMLInputElement>('#b-token').value.trim()
     let ok = false
@@ -307,14 +345,14 @@ export function mountPhone(root: HTMLElement) {
     await store.saveBridge()
     $('#b-status').textContent = ''
     await checkBridge()
-  }
-  $('#b-remove').onclick = async () => {
+  })
+  $('#b-remove').onclick = safe(async () => {
     store.bridge = null
     await store.saveBridge()
     $<HTMLInputElement>('#b-url').value = $<HTMLInputElement>('#b-token').value = ''
     $('#b-status').textContent = 'Removed. Scripts that fetch data will say they need your computer.'
     setBridgeState('unset', 'Not set up')
-  }
+  })
 
   events.onResult = (name, r) => {
     running.delete(name)
@@ -327,4 +365,5 @@ export function mountPhone(root: HTMLElement) {
   showTab('scripts')
   renderScripts()
   renderKeys()
+  if (store.problem()) report(store.problem())
 }

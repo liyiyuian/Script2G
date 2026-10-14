@@ -64,10 +64,16 @@ export async function startRun(id: string, hooks: RunHooks, mode: 'app' | 'widge
   }
   let dirtyKeychain = false
   let dirtyFiles = false
-  const save = async (r: RunResult) => {
-    if (dirtyKeychain) await store.saveKeychain()
-    if (dirtyFiles) await store.saveFiles()
-    return r
+  /** Saves what the script changed in Keychain / FileManager; a failed save becomes part of the run's error. */
+  const save = async (r: RunResult): Promise<RunResult> => {
+    try {
+      if (dirtyKeychain) await store.saveKeychain()
+      if (dirtyFiles) await store.saveFiles()
+      return r
+    } catch (e) {
+      const why = `Couldn't save the script's Keychain or file changes: ${e instanceof Error ? e.message : e}`
+      return { ...r, error: r.error ? `${r.error} ${why}` : why }
+    }
   }
   const host: Host = {
     fetch: relay,
@@ -97,13 +103,17 @@ export async function startRun(id: string, hooks: RunHooks, mode: 'app' | 'widge
   let finish: (r: RunResult) => void = () => {}
   const result = new Promise<RunResult>(resolve => { finish = resolve })
   let timer: ReturnType<typeof setTimeout> | undefined
-  const end = (r: RunResult) => {
+  let ended = false
+  const end = (r: RunResult) => { // every way a run ends (done, stopped, frozen, crashed) saves what it changed
+    if (ended) return
+    ended = true
     clearTimeout(timer)
     worker.terminate()
-    finish(r)
+    void save(r).then(finish)
   }
   const touch = () => {
     clearTimeout(timer)
+    if (ended) return
     timer = setTimeout(() => end(fail(`The script stopped responding for ${FROZEN_MS / 1000} s (a loop that never waits?) and was stopped.`)), FROZEN_MS)
   }
 
@@ -111,7 +121,7 @@ export async function startRun(id: string, hooks: RunHooks, mode: 'app' | 'widge
   worker.onmessage = async (e: MessageEvent) => {
     const m = e.data
     touch()
-    if (m.type === 'done') end(await save(m.result as RunResult))
+    if (m.type === 'done') end(m.result as RunResult)
     else if (m.type === 'log') host.log(m.level, m.text)
     else if (m.type === 'keychain') host.keychainChanged(m.key, m.value)
     else if (m.type === 'file') host.fileChanged(m.path, m.value)

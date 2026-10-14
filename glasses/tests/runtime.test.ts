@@ -181,3 +181,13 @@ test('Timer.schedule fires (repeating, then invalidated)', async () => {
   `, host, opts())
   assert.equal(r.output.text, 'ticks 3')
 })
+
+test('a script may declare its own variables with Scriptable names (config, args, Path, module)', async () => {
+  const { host } = fakeHost()
+  const r = await runScript(`const config = { city: 'X' }; let args = 2; class Path {}; const module = 3
+    console.log(config.city, args, typeof Path, module)`, host, opts())
+  assert.equal(r.error, undefined)
+  assert.equal(r.output.text, 'X 2 function 3')
+  const m = await runScript(`console.log(importModule('lib').v)`, host, opts({ modules: { lib: 'const config = 1; module.exports.v = config + 1' } }))
+  assert.equal(m.output.text, '2')
+})

@@ -6,60 +6,25 @@
 //   System menu (tap then hold): "All scripts", "Next part"/"Previous part" for long output, favourite scripts
 import {
   CreateStartUpPageContainer, ListContainerProperty, ListItemContainerProperty, MenuContainerProperty, MenuItemProperty,
-  OsEventTypeList, RebuildPageContainer, TextContainerProperty, TextContainerUpgrade, type EvenHubEvent,
+  OsEventTypeList, RebuildPageContainer, TextContainerProperty, TextContainerUpgrade, pickLoose, type EvenHubEvent,
 } from '@evenrealities/even_hub_sdk'
 import { getTextWidth, pxTruncate } from '@evenrealities/pretext'
 import { bridge, call } from './sdk.ts'
 import { store } from './store.ts'
 import { startRun, type RunHandle } from './runner.ts'
+import { INNER, PAD, W, fitBytes, toParts, wrap } from './layout.ts'
 import type { Choice, RunResult } from './runtime/types.ts'
 
-const W = 576
 const H = 288
-const PAD = 4
-const INNER = W - 2 * PAD
 const LINE_PX = 27 // fixed line height of the firmware font (Even's pretext docs)
 const ITEM_PX = 40 // fixed list item height (same docs); a list shorter than its box is drawn centred in it
 const HEAD_H = LINE_PX + 2 * PAD // the fixed title line above a script's output
-// A text box the glasses scroll themselves holds about 1000 characters (rebuild limit; the simulator refused
-// a 1390-character update), so longer output is split into parts of up to PART_CHARS.
-const PART_CHARS = 950
 const LIST_MAX = 20 // firmware limit on list items
 const PER_PAGE = 18 // when a list is longer, 18 items + "Previous page"/"Next page"
 const MENU_ALL = 1
 const MENU_NEXT = 2
 const MENU_PREV = 3
 const MENU_FAV = 100
-
-/** Splits text into display lines at word boundaries, measured with the firmware font. */
-export function wrap(text: string, maxPx = INNER): string[] {
-  const out: string[] = []
-  for (const para of text.replace(/\t/g, '  ').split('\n')) {
-    let line = ''
-    for (const token of para.split(/(\s+)/).filter(Boolean)) {
-      if (getTextWidth(line + token) <= maxPx) {
-        line += token
-        continue
-      }
-      if (line.trim()) out.push(line.trimEnd())
-      line = token.trimStart()
-      while (getTextWidth(line) > maxPx) { // a single word wider than the screen
-        let n = line.length - 1
-        while (n > 1 && getTextWidth(line.slice(0, n)) > maxPx) n--
-        out.push(line.slice(0, n))
-        line = line.slice(n)
-      }
-    }
-    out.push(line.trimEnd())
-  }
-  while (out.length > 1 && out[out.length - 1] === '') out.pop()
-  return out
-}
-
-function fitBytes(s: string, max: number): string {
-  while (new TextEncoder().encode(s).length > max) s = s.slice(0, -1)
-  return s
-}
 
 type View =
   | { kind: 'list'; page: number }
@@ -74,6 +39,9 @@ let shownBody = '' // the output body on the glasses, so a header-only change ke
 let started = false
 let createTimedOut = false // the start-page call got no answer, but it may still have reached the glasses
 let retry: ReturnType<typeof setTimeout> | undefined
+let drawing: Promise<void> = Promise.resolve()
+let queued = false
+let menuMulti = false // the menu on the glasses has "Next part"/"Previous part"
 let run: RunHandle | null = null
 let runSeq = 0 // which run the glasses belong to; a stopped or replaced run is ignored
 let menuFavIds: string[] = []
@@ -85,6 +53,7 @@ export const events = { onResult: (_name: string, _r: RunResult) => {}, onLog: (
 
 function menu(): MenuContainerProperty {
   const parts = view.kind === 'output' && view.parts.length > 1
+  menuMulti = parts
   const favs = store.scripts.filter(s => s.fav).slice(0, parts ? 7 : 9) // the firmware allows 10 items
   menuFavIds = favs.map(s => s.id)
   return new MenuContainerProperty({
@@ -94,21 +63,6 @@ function menu(): MenuContainerProperty {
       ...favs.map((s, i) => new MenuItemProperty({ itemID: MENU_FAV + i, itemName: fitBytes(s.name, 32) })),
     ],
   })
-}
-
-/** Display lines grouped into parts that each fit one text box the glasses can scroll. */
-function toParts(text: string): string[] {
-  const parts: string[] = []
-  let cur = ''
-  for (const line of wrap(text || ' ')) {
-    if (cur && cur.length + 1 + line.length > PART_CHARS) {
-      parts.push(cur)
-      cur = ''
-    }
-    cur = cur ? `${cur}\n${line}` : line.slice(0, PART_CHARS)
-  }
-  parts.push(cur)
-  return parts
 }
 
 async function page(textObject: TextContainerProperty[], list?: ListContainerProperty) {
@@ -142,8 +96,8 @@ const upgrade = (containerID: number, containerName: string, content: string) =>
   call(b => b.textContainerUpgrade(new TextContainerUpgrade({ containerID, containerName, contentOffset: 0, contentLength: 0, content })))
 
 /** A fixed header line, and the output below it in a text box the glasses scroll themselves (no redraw per swipe). */
-async function showOutput(header: string, body: string) {
-  if (layout === 'output') {
+async function showOutput(header: string, body: string, multi: boolean) {
+  if (layout === 'output' && multi === menuMulti) { // the menu only changes with a full rebuild
     await upgrade(2, 'head', header)
     if (body !== shownBody) await upgrade(1, 'main', body) // new text starts at the top again
     shownBody = body
@@ -164,7 +118,7 @@ async function showOutput(header: string, body: string) {
 }
 
 async function showList(title: string, labels: string[]) {
-  const head = title ? wrap(title).slice(0, 2) : []
+  const head = title ? wrap(title).slice(0, 4) : []
   const headH = head.length ? head.length * LINE_PX + 2 * PAD : 0
   const texts = head.length ? [new TextContainerProperty({
     xPosition: 0, yPosition: 0, width: W, height: headH, borderWidth: 0, borderColor: 0, paddingLength: PAD,
@@ -197,9 +151,18 @@ function outputHeader(v: Extract<View, { kind: 'output' }>): string {
   return pxTruncate(v.title, INNER - getTextWidth(suffix)) + suffix
 }
 
-/** Draws the current view. If the glasses don't answer (Bluetooth hiccup, slow start), redraws from scratch
- * 2 s later instead of leaving them blank or stale. */
-async function render() {
+/** Draws the current view, one draw at a time: overlapping draws interleaved their calls and could leave a
+ * stopped run's output on the glasses. A queued draw reads `view` when it starts, so it draws the latest. */
+function render(): Promise<void> {
+  if (queued) return drawing
+  queued = true
+  drawing = drawing.then(() => { queued = false; return drawOnce() })
+  return drawing
+}
+
+/** If the glasses don't answer (Bluetooth hiccup, slow start), draws from scratch 2 s later instead of
+ * leaving them blank or stale. */
+async function drawOnce() {
   clearTimeout(retry)
   try {
     await draw()
@@ -217,14 +180,16 @@ async function draw() {
   else if (v.kind === 'choice') {
     const title = [v.choice.title, v.choice.message].filter(Boolean).join(' - ')
     await showList(title, paged(v.choice.options, v.page).labels)
-  } else if (v.kind === 'output') await showOutput(outputHeader(v), v.parts[v.part])
+  } else if (v.kind === 'output') await showOutput(outputHeader(v), v.parts[v.part], v.parts.length > 1)
   else if (v.kind === 'busy') await showText(`${v.title}\n\nRunning...${v.note ? `\n${v.note}` : ''}`)
   else await showText(v.text)
 }
 
 export async function showRoot() {
   const checked = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })
-  view = store.scripts.length ? { kind: 'list', page: 0 }
+  const problem = store.scripts.length ? '' : store.problem()
+  view = problem ? { kind: 'message', text: problem }
+    : store.scripts.length ? { kind: 'list', page: 0 }
     : { kind: 'message', text: `No scripts yet.\n\nAdd one on your phone: open this app in the Even app and tap New script.\n\nTap to check again (checked ${checked}).` }
   await render()
 }
@@ -260,23 +225,31 @@ export async function runOnGlasses(id: string, mode: 'app' | 'widget' = 'app') {
   if (!meta) return showRoot()
   view = { kind: 'busy', title: meta.name, since: Date.now() }
   await render()
-  const handle = await startRun(id, {
-    present: choice => new Promise<number>(resolve => {
-      view = { kind: 'choice', choice, page: 0, resolve: i => { view = { kind: 'busy', title: meta.name, since: Date.now() }; void render(); resolve(i) } }
-      void render()
-    }),
-    log: (level, text) => events.onLog(level, text),
-    show: output => { if (seq === runSeq) live(meta.name, id, output) },
-  }, mode)
-  if (seq !== runSeq) return handle.abort() // stopped or replaced while starting
-  run = handle
-  const r = await handle.result
+  let r: RunResult
+  try {
+    const handle = await startRun(id, {
+      present: choice => new Promise<number>(resolve => {
+        view = { kind: 'choice', choice, page: 0, resolve: i => { view = { kind: 'busy', title: meta.name, since: Date.now() }; void render(); resolve(i) } }
+        void render()
+      }),
+      log: (level, text) => events.onLog(level, text),
+      show: output => { if (seq === runSeq) live(meta.name, id, output) },
+    }, mode)
+    if (seq !== runSeq) return handle.abort() // stopped or replaced while starting
+    run = handle
+    r = await handle.result
+  } catch (e) { // e.g. the script couldn't be read from storage in time
+    r = { output: { kind: 'none', text: '' }, error: `The script couldn't start: ${e instanceof Error ? e.message : e}`, unsupported: [], usedNetwork: false }
+  }
   if (seq !== runSeq) return // stopped or replaced by another run
   run = null
   clearTimeout(liveTimer)
   events.onResult(meta.name, r)
   const text = r.error ? `Error: ${r.error}${r.output.text ? `\n\n${r.output.text}` : ''}` : r.output.text || 'Done (no output).'
-  view = { kind: 'output', title: meta.name, parts: toParts(text), part: 0, scriptId: id }
+  const parts = toParts(text)
+  const cur = view as View // changed by live updates while the run went on
+  const part = cur.kind === 'output' && cur.scriptId === id ? Math.min(cur.part, parts.length - 1) : 0 // keep the part being read
+  view = { kind: 'output', title: meta.name, parts, part, scriptId: id }
   await render()
 }
 
@@ -341,6 +314,9 @@ async function tap() {
 const typeOf = (env?: { eventType?: number }) => (env ? env.eventType ?? OsEventTypeList.CLICK_EVENT : null)
 
 async function onEvent(e: EvenHubEvent) {
+  // An event type this SDK doesn't know parses with no type, which would look like a tap: ignore it.
+  const raw = pickLoose(e.jsonData, 'eventType')
+  if (raw != null && OsEventTypeList.fromJson(raw) === undefined) return
   if (e.menuItemClickEvent) {
     const id = e.menuItemClickEvent.itemID ?? 0
     if (id === MENU_ALL) {

@@ -524,14 +524,15 @@ export async function runScript(source: string, host: Host, opts: RunOptions): P
     const src = opts.modules[key]
     if (src == null) throw new Error(`importModule: there is no script named "${key}"`)
     const module = { exports: {} }
-    new Function(...names, 'importModule', 'module', 'exports', src)(...names.map(n => globals[n]), globals.importModule, module, module.exports)
+    new Function(...names, 'importModule', 'module', 'exports', `{\n${src}\n}`)(...names.map(n => globals[n]), globals.importModule, module, module.exports)
     return module.exports
   }
 
   let error: string | undefined
   try {
     const module = { exports: {} }
-    const fn = new AsyncFunction(...names, 'importModule', 'module', 'exports', source)
+    // In a block, a script's own `const config` / `class Path` shadow the globals instead of clashing with them.
+    const fn = new AsyncFunction(...names, 'importModule', 'module', 'exports', `{\n${source}\n}`)
     await fn(...names.map(n => globals[n]), globals.importModule, module, module.exports)
   } catch (e) {
     error = e instanceof Error ? e.message : describe(e)
