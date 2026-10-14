@@ -1,0 +1,10 @@
+# dependencies / build output
+node_modules/
+dist/
+*.ehpk
+__pycache__/
+*.pyc
+# local env (never commit tokens or API keys)
+.env
+.env.*
+!.env.example
