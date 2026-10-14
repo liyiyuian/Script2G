@@ -1,7 +1,8 @@
-// DEV ONLY (dev server / QR sideload): device checks for the open questions. Not in the packed app.
+// Device checks for the open questions. Only in the dev server or a VITE_SELFTEST=1 build, never the packed app.
 import RunnerWorker from './worker.ts?worker&inline'
 import { getBig, setBig, store } from './store.ts'
 import { refresh } from './glasses.ts'
+import { uuid } from './runtime/scriptable.ts'
 import { renderScripts } from './phone.ts'
 
 const TESTS: Record<string, string> = {
@@ -32,7 +33,7 @@ console.log('A 51 KB script ran. Its first line is', ${51_000 + 6}, 'characters 
 async function addTests() {
   for (const [name, source] of Object.entries(TESTS)) {
     const old = store.scripts.find(s => s.name === name)
-    await store.saveScript(old ?? { id: crypto.randomUUID(), name, fav: false }, source)
+    await store.saveScript(old ?? { id: uuid(), name, fav: false }, source)
   }
   await refresh()
 }

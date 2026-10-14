@@ -1,6 +1,7 @@
 # dependencies / build output
 node_modules/
 dist/
+dist-selftest/
 *.ehpk
 __pycache__/
 *.pyc

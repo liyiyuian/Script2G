@@ -6,4 +6,5 @@ import { start } from './glasses.ts'
 await store.load()
 mountPhone(document.getElementById('app') as HTMLElement)
 await start()
-if (import.meta.env.DEV) (await import('./selftest.ts')).mountSelftest()
+// Device self-test: dev server, or a production build made with VITE_SELFTEST=1 (never the packed app).
+if (import.meta.env.DEV || import.meta.env.VITE_SELFTEST === '1') await (await import('./selftest.ts')).mountSelftest()

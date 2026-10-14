@@ -154,3 +154,9 @@ test('DateFormatter supports Scriptable-style patterns', async () => {
   `, host, opts())
   assert.equal(r.output.text, '2026-01-05 07:03 h')
 })
+
+test('UUID.string() gives a v4 UUID without needing HTTPS (crypto.randomUUID)', async () => {
+  const { host } = fakeHost()
+  const r = await runScript(`console.log(UUID.string())`, host, opts())
+  assert.match(r.output.text, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/)
+})

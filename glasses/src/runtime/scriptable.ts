@@ -12,6 +12,15 @@ export function toBase64(bytes: Uint8Array): string {
   return btoa(s)
 }
 
+/** A random v4 UUID. crypto.randomUUID needs a secure context (HTTPS), which a dev sideload isn't. */
+export function uuid(): string {
+  const b = crypto.getRandomValues(new Uint8Array(16))
+  b[6] = (b[6] & 0x0f) | 0x40
+  b[8] = (b[8] & 0x3f) | 0x80
+  const h = Array.from(b, x => x.toString(16).padStart(2, '0')).join('')
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
+}
+
 export function fromBase64(b64: string): Uint8Array {
   const s = atob(b64)
   const out = new Uint8Array(s.length)
@@ -493,7 +502,7 @@ export async function runScript(source: string, host: Host, opts: RunOptions): P
     Data, Request, Keychain, Alert, UITable, UITableRow, UITableCell, DateFormatter, RelativeDateTimeFormatter, Timer,
     FileManager: partial('FileManager', { local: () => fm, iCloud: () => fm }),
     QuickLook: { present: async (item: unknown) => { quickLook = describe(item) } },
-    UUID: { string: () => crypto.randomUUID().toUpperCase() },
+    UUID: { string: () => uuid().toUpperCase() },
     Device: partial('Device', {
       name: () => '', systemName: () => 'iOS', systemVersion: () => '', model: () => 'G2',
       isPhone: () => false, isPad: () => false, screenSize: () => new Size(576, 288),

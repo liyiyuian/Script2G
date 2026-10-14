@@ -1,6 +1,7 @@
 // The phone page inside the Even app: manage scripts, Keychain values and the bridge, see the last run.
 import { store, type ScriptMeta } from './store.ts'
 import { ping } from './runner.ts'
+import { uuid } from './runtime/scriptable.ts'
 import { events, refresh, runOnGlasses } from './glasses.ts'
 import type { RunResult } from './runtime/types.ts'
 
@@ -75,7 +76,7 @@ async function saveEditor() {
   const name = $<HTMLInputElement>('#ed-name').value.trim()
   if (!name) return alert('Give the script a name.')
   if (store.scripts.some(s => s.name === name && s.id !== editing?.id)) return alert(`There is already a script named "${name}".`)
-  const meta = editing ? { ...editing, name } : { id: crypto.randomUUID(), name, fav: false }
+  const meta = editing ? { ...editing, name } : { id: uuid(), name, fav: false }
   await store.saveScript(meta, $<HTMLTextAreaElement>('#ed-code').value)
   $('#editor').hidden = true
   renderScripts()
