@@ -8,6 +8,8 @@ export interface ScriptMeta {
   id: string
   name: string
   fav: boolean
+  /** Scriptable's widget parameter (args.widgetParameter). */
+  param?: string
 }
 
 export interface BridgeSettings {

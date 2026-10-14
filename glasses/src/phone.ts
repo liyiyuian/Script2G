@@ -23,6 +23,7 @@ const PAGE = `
 <section id="editor" hidden>
   <h2 id="ed-title">New script</h2>
   <input id="ed-name" placeholder="Name" autocapitalize="off" autocomplete="off">
+  <input id="ed-param" placeholder="Parameter (optional, like a widget parameter in Scriptable)" autocapitalize="off" autocomplete="off">
   <textarea id="ed-code" placeholder="Paste or type JavaScript" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
   <div class="row"><button id="ed-save" class="accent">Save</button><button id="ed-cancel">Cancel</button></div>
 </section>
@@ -68,6 +69,7 @@ async function openEditor(s: ScriptMeta | null) {
   editing = s
   $('#ed-title').textContent = s ? `Edit ${s.name}` : 'New script'
   $<HTMLInputElement>('#ed-name').value = s?.name ?? ''
+  $<HTMLInputElement>('#ed-param').value = s?.param ?? ''
   $<HTMLTextAreaElement>('#ed-code').value = s ? await store.source(s.id) : ''
   $('#editor').hidden = false
   $('#editor').scrollIntoView({ behavior: 'smooth' })
@@ -77,7 +79,8 @@ async function saveEditor() {
   const name = $<HTMLInputElement>('#ed-name').value.trim()
   if (!name) return alert('Give the script a name.')
   if (store.scripts.some(s => s.name === name && s.id !== editing?.id)) return alert(`There is already a script named "${name}".`)
-  const meta = editing ? { ...editing, name } : { id: uuid(), name, fav: false }
+  const param = $<HTMLInputElement>('#ed-param').value.trim() || undefined
+  const meta = editing ? { ...editing, name, param } : { id: uuid(), name, fav: false, param }
   await store.saveScript(meta, $<HTMLTextAreaElement>('#ed-code').value)
   $('#editor').hidden = true
   renderScripts()

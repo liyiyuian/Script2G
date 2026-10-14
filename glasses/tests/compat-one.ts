@@ -30,6 +30,8 @@ const host: Host = {
   log: (level, text) => { if (level !== 'log') logs.push(`${level}: ${text}`) },
   keychainChanged: () => {},
   fileChanged: () => {},
+  // Live output, so compat.ts can tell a live-updating script from a stuck one when it hits the time limit.
+  show: o => process.stderr.write(`SHOW ${JSON.stringify(o)}\n`),
 }
 
 const modules: Record<string, string> = {}
@@ -37,6 +39,7 @@ for (const f of readdirSync(dir)) if (f.endsWith('.js')) modules[basename(f, '.j
 
 const r = await runScript(readFileSync(file, 'utf8'), host, {
   name: basename(file, '.js'), runsInApp: mode === 'app', runsInWidget: mode === 'widget', keychain: {}, files: {}, modules,
+  parameter: process.env.COMPAT_PARAM, // e.g. COMPAT_PARAM='…' npm run compat -- <folder>
 })
 process.stdout.write(JSON.stringify({ ...r, hosts: [...hosts], choices, warnings: logs }))
 process.exit(0) // don't wait for timers the script left behind

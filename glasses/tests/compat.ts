@@ -28,7 +28,12 @@ function runOne(file: string, mode: string): Report {
   const sandbox = ['--permission', `--allow-fs-read=${join(import.meta.dirname, '..')}`, `--allow-fs-read=${dir}`]
   const p = spawnSync(process.execPath, [...sandbox, join(import.meta.dirname, 'compat-one.ts'), file, mode, dir], { encoding: 'utf8', timeout: 30_000 })
   if (p.error || p.status !== 0 || !p.stdout) {
-    const why = p.signal === 'SIGTERM' ? 'did not finish within 30 s' : (p.stderr || String(p.error)).trim().split('\n').pop()
+    const shows = (p.stderr || '').split('\n').filter(l => l.startsWith('SHOW '))
+    if (p.signal === 'SIGTERM' && shows.length) { // still updating itself when the time ran out: a live script
+      const output = JSON.parse(shows[shows.length - 1].slice(5)) as Report['output']
+      return { output, unsupported: [], usedNetwork: false, hosts: [], choices: [], warnings: [`live: ${shows.length} updates in 30 s, still running`] }
+    }
+    const why = p.signal === 'SIGTERM' ? 'did not finish within 30 s' : (p.stderr || String(p.error)).trim().split('\n').filter(l => !l.startsWith('SHOW ')).pop()
     return { output: { kind: 'none', text: '' }, error: why, unsupported: [], usedNetwork: false, hosts: [], choices: [], warnings: [] }
   }
   return JSON.parse(p.stdout) as Report

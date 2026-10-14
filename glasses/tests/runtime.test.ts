@@ -5,7 +5,7 @@ import { runScript, toBase64 } from '../src/runtime/scriptable.ts'
 import type { Choice, Host, RelayRequest, RunOptions } from '../src/runtime/types.ts'
 
 function fakeHost(answers: number[] = [], body = '{"ok":true}') {
-  const calls = { fetches: [] as RelayRequest[], choices: [] as Choice[], keychain: [] as [string, string | null][], files: [] as string[] }
+  const calls = { fetches: [] as RelayRequest[], choices: [] as Choice[], keychain: [] as [string, string | null][], files: [] as string[], shows: [] as string[] }
   const host: Host = {
     fetch: async req => {
       calls.fetches.push(req)
@@ -18,6 +18,7 @@ function fakeHost(answers: number[] = [], body = '{"ok":true}') {
     log: () => {},
     keychainChanged: (k, v) => { calls.keychain.push([k, v]) },
     fileChanged: p => { calls.files.push(p) },
+    show: o => { calls.shows.push(o.text) },
   }
   return { host, calls }
 }
@@ -159,4 +160,14 @@ test('UUID.string() gives a v4 UUID without needing HTTPS (crypto.randomUUID)', 
   const { host } = fakeHost()
   const r = await runScript(`console.log(UUID.string())`, host, opts())
   assert.match(r.output.text, /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/)
+})
+
+test('presenting a widget or QuickLook shows it at once (live updates), and the parameter reaches args', async () => {
+  const { host, calls } = fakeHost()
+  const r = await runScript(`
+    for (const n of [1, 2]) { const w = new ListWidget(); w.addText('tick ' + n); await w.presentSmall() }
+    await QuickLook.present('param=' + args.widgetParameter)
+  `, host, opts({ parameter: 'abc' }))
+  assert.deepEqual(calls.shows, ['tick 1', 'tick 2', 'param=abc'])
+  assert.equal(r.output.text, 'tick 2') // a presented widget is the final output
 })

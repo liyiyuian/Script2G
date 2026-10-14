@@ -1,6 +1,6 @@
 // What the glasses show, and what each gesture does there.
 //   Script list (root):  swipe = move (firmware), tap = run, double-tap = Even's exit dialog
-//   Output:              swipe = scroll, tap = run again, double-tap = back to the list
+//   Output:              swipe = scroll, tap = run again, double-tap = back to the list (and stop it if still running)
 //   Choice (Alert/UITable): tap = pick, double-tap = cancel
 //   System menu (tap then hold): "All scripts" + favourite scripts
 import {
@@ -59,15 +59,18 @@ function fitBytes(s: string, max: number): string {
 type View =
   | { kind: 'list'; page: number }
   | { kind: 'message'; text: string }
-  | { kind: 'busy'; title: string }
-  | { kind: 'output'; title: string; lines: string[]; top: number; scriptId: string }
+  | { kind: 'busy'; title: string; since: number; note?: string }
+  | { kind: 'output'; title: string; lines: string[]; top: number; scriptId: string; running?: boolean; note?: string }
   | { kind: 'choice'; choice: Choice; page: number; resolve: (i: number) => void }
 
 let view: View = { kind: 'message', text: '' }
 let layout: 'text' | 'list' | null = null
 let started = false
 let run: RunHandle | null = null
+let runSeq = 0 // which run the glasses belong to; a stopped or replaced run is ignored
 let menuFavIds: string[] = []
+let liveTimer: ReturnType<typeof setTimeout> | undefined
+let liveLast = 0
 
 /** The phone page listens here for each finished run. */
 export const events = { onResult: (_name: string, _r: RunResult) => {}, onLog: (_level: string, _text: string) => {} }
@@ -139,7 +142,8 @@ function paged(all: string[], pageNo: number) {
 
 function outputText(v: Extract<View, { kind: 'output' }>): string {
   const body = v.lines.slice(v.top, v.top + LINES - 1)
-  const pos = v.lines.length > LINES - 1 ? `  ${v.top + 1}-${v.top + body.length} of ${v.lines.length}` : ''
+  const pos = (v.lines.length > LINES - 1 ? `  ${v.top + 1}-${v.top + body.length} of ${v.lines.length}` : '')
+    + (v.running ? ' · running' : '') + (v.note ? ` · ${v.note}` : '')
   return [pxTruncate(v.title, INNER - getTextWidth(pos)) + pos, ...body].join('\n')
 }
 
@@ -150,13 +154,14 @@ async function render() {
     const title = [v.choice.title, v.choice.message].filter(Boolean).join(' - ')
     await showList(title, paged(v.choice.options, v.page).labels)
   } else if (v.kind === 'output') await showText(outputText(v))
-  else if (v.kind === 'busy') await showText(`${v.title}\n\nRunning...`)
+  else if (v.kind === 'busy') await showText(`${v.title}\n\nRunning...${v.note ? `\n${v.note}` : ''}`)
   else await showText(v.text)
 }
 
 export async function showRoot() {
+  const checked = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })
   view = store.scripts.length ? { kind: 'list', page: 0 }
-    : { kind: 'message', text: 'No scripts yet.\n\nAdd one on your phone: open this app in the Even app and tap New script.\n\nTap here to check again.' }
+    : { kind: 'message', text: `No scripts yet.\n\nAdd one on your phone: open this app in the Even app and tap New script.\n\nTap to check again (checked ${checked}).` }
   await render()
 }
 
@@ -171,25 +176,40 @@ function stopRun() {
   if (view.kind === 'choice') view.resolve(-1)
   run?.abort()
   run = null
+  runSeq++
+  clearTimeout(liveTimer)
+}
+
+/** Output a script shows while it is still running; redrawn at most once a second, the latest wins. */
+function live(title: string, scriptId: string, output: RunResult['output']) {
+  const top = view.kind === 'output' && view.scriptId === scriptId ? view.top : 0
+  const lines = wrap(output.text || ' ')
+  view = { kind: 'output', title, lines, top: Math.min(top, Math.max(0, lines.length - (LINES - 1))), scriptId, running: true }
+  clearTimeout(liveTimer)
+  liveTimer = setTimeout(() => { liveLast = Date.now(); void render() }, Math.max(0, 1000 - (Date.now() - liveLast)))
 }
 
 export async function runOnGlasses(id: string, mode: 'app' | 'widget' = 'app') {
   stopRun()
+  const seq = runSeq
   const meta = store.scripts.find(s => s.id === id)
   if (!meta) return showRoot()
-  view = { kind: 'busy', title: meta.name }
+  view = { kind: 'busy', title: meta.name, since: Date.now() }
   await render()
   const handle = await startRun(id, {
     present: choice => new Promise<number>(resolve => {
-      view = { kind: 'choice', choice, page: 0, resolve: i => { view = { kind: 'busy', title: meta.name }; void render(); resolve(i) } }
+      view = { kind: 'choice', choice, page: 0, resolve: i => { view = { kind: 'busy', title: meta.name, since: Date.now() }; void render(); resolve(i) } }
       void render()
     }),
     log: (level, text) => events.onLog(level, text),
+    show: output => { if (seq === runSeq) live(meta.name, id, output) },
   }, mode)
+  if (seq !== runSeq) return handle.abort() // stopped or replaced while starting
   run = handle
   const r = await handle.result
-  if (run !== handle) return // stopped or replaced by another run
+  if (seq !== runSeq) return // stopped or replaced by another run
   run = null
+  clearTimeout(liveTimer)
   events.onResult(meta.name, r)
   const text = r.error ? `Error: ${r.error}${r.output.text ? `\n\n${r.output.text}` : ''}` : r.output.text || 'Done (no output).'
   view = { kind: 'output', title: meta.name, lines: wrap(text), top: 0, scriptId: id }
@@ -225,18 +245,27 @@ async function pick(i: number) {
   }
 }
 
+// Every gesture gets a visible answer (Even's review rule), even where there is nothing to do.
 async function scroll(delta: number) {
   const v = view
+  if (v.kind === 'busy' || v.kind === 'message') return nudge()
   if (v.kind !== 'output') return
   const top = Math.max(0, Math.min(v.top + delta, v.lines.length - (LINES - 1)))
-  if (top === v.top) return
+  v.note = top === v.top ? (delta < 0 ? 'top' : 'end') : undefined
   v.top = top
+  await render()
+}
+
+async function nudge() {
+  if (view.kind === 'message') return showRoot()
+  if (view.kind !== 'busy') return
+  view.note = `Still running, ${Math.round((Date.now() - view.since) / 1000)} s. Double-tap to stop.`
   await render()
 }
 
 async function tap() {
   if (view.kind === 'output') return runOnGlasses(view.scriptId)
-  if (view.kind === 'message') return showRoot()
+  return nudge()
 }
 
 // A tap arrives without an eventType (protobuf drops the 0), so it is resolved inside the envelope.

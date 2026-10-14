@@ -22,6 +22,7 @@ const host: Host = {
   log: (level, text) => post({ type: 'log', level, text }),
   keychainChanged: (key, value) => post({ type: 'keychain', key, value }),
   fileChanged: (path, value) => post({ type: 'file', path, value }),
+  show: output => post({ type: 'show', output }),
 }
 
 self.onmessage = async (e: MessageEvent) => {
@@ -32,6 +33,8 @@ self.onmessage = async (e: MessageEvent) => {
     if (m.ok) p?.resolve(m.value as never)
     else p?.reject(new Error(m.error))
   } else if (m.type === 'run') {
+    // A heartbeat the page can count on: it stops only while the script blocks this thread.
+    setInterval(() => post({ type: 'alive' }), 5000)
     post({ type: 'done', result: await runScript(m.source as string, host, m.opts as RunOptions) })
   }
 }

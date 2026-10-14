@@ -5,11 +5,13 @@ import { runScript } from './runtime/scriptable.ts'
 import type { Choice, Host, RelayRequest, RelayResponse, RunResult } from './runtime/types.ts'
 import { store } from './store.ts'
 
-const IDLE_LIMIT_MS = 30_000
+// The worker sends a heartbeat every 5 s; three missed ones mean the script is blocking it (a loop).
+const FROZEN_MS = 15_000
 
 export interface RunHooks {
   present(choice: Choice): Promise<number>
   log(level: string, text: string): void
+  show(output: RunResult['output']): void
 }
 
 export interface RunHandle {
@@ -59,7 +61,7 @@ export async function startRun(id: string, hooks: RunHooks, mode: 'app' | 'widge
   for (const s of store.scripts) if (s.id !== id) modules[s.name] = await store.source(s.id)
   const opts = {
     name: meta?.name ?? 'Script', runsInApp: mode === 'app', runsInWidget: mode === 'widget',
-    keychain: store.keychain, files: store.files, modules,
+    keychain: store.keychain, files: store.files, modules, parameter: meta?.param,
   }
   let dirtyKeychain = false
   let dirtyFiles = false
@@ -72,6 +74,7 @@ export async function startRun(id: string, hooks: RunHooks, mode: 'app' | 'widge
     fetch: relay,
     present: hooks.present,
     log: hooks.log,
+    show: hooks.show,
     keychainChanged: (k, v) => {
       if (v == null) delete store.keychain[k]
       else store.keychain[k] = v
@@ -95,7 +98,6 @@ export async function startRun(id: string, hooks: RunHooks, mode: 'app' | 'widge
 
   let finish: (r: RunResult) => void = () => {}
   const result = new Promise<RunResult>(resolve => { finish = resolve })
-  let waiting = 0 // host calls in progress (a choice on the glasses can take as long as the user likes)
   let timer: ReturnType<typeof setTimeout> | undefined
   const end = (r: RunResult) => {
     clearTimeout(timer)
@@ -104,7 +106,7 @@ export async function startRun(id: string, hooks: RunHooks, mode: 'app' | 'widge
   }
   const touch = () => {
     clearTimeout(timer)
-    if (!waiting) timer = setTimeout(() => end(fail(`The script stopped responding for ${IDLE_LIMIT_MS / 1000} s and was stopped.`)), IDLE_LIMIT_MS)
+    timer = setTimeout(() => end(fail(`The script stopped responding for ${FROZEN_MS / 1000} s (a loop that never waits?) and was stopped.`)), FROZEN_MS)
   }
 
   worker.onerror = e => end(fail(e.message || 'The script could not start.'))
@@ -115,17 +117,13 @@ export async function startRun(id: string, hooks: RunHooks, mode: 'app' | 'widge
     else if (m.type === 'log') host.log(m.level, m.text)
     else if (m.type === 'keychain') host.keychainChanged(m.key, m.value)
     else if (m.type === 'file') host.fileChanged(m.path, m.value)
+    else if (m.type === 'show') host.show(m.output)
     else if (m.type === 'call') {
-      waiting++
-      touch()
       try {
         const value = m.op === 'fetch' ? await host.fetch(m.payload) : await host.present(m.payload)
         worker.postMessage({ type: 'reply', id: m.id, ok: true, value })
       } catch (err) {
         worker.postMessage({ type: 'reply', id: m.id, ok: false, error: err instanceof Error ? err.message : String(err) })
-      } finally {
-        waiting--
-        touch()
       }
     }
   }

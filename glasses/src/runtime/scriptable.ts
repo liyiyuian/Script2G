@@ -485,7 +485,10 @@ export async function runScript(source: string, host: Host, opts: RunOptions): P
 
   const globals: Record<string, unknown> = {
     console,
-    args: { plainTexts: [], urls: [], fileURLs: [], images: [], queryParameters: {}, shortcutParameter: null, widgetParameter: null, notification: null },
+    args: {
+      plainTexts: [], urls: [], fileURLs: [], images: [], queryParameters: {}, shortcutParameter: null, notification: null,
+      widgetParameter: opts.parameter || null,
+    },
     config: {
       runsInApp: opts.runsInApp, runsInWidget: opts.runsInWidget, runsInAccessoryWidget: false, runsInActionExtension: false,
       runsWithSiri: false, runsFromHomeScreen: false, runsInNotification: false,
@@ -497,11 +500,11 @@ export async function runScript(source: string, host: Host, opts: RunOptions): P
       setWidget: (w: ListWidget) => { widget = w },
       setShortcutOutput: (v: unknown) => { shortcutOutput = describe(v) },
     }),
-    ListWidget: makeListWidget(w => { widget = w }),
+    ListWidget: makeListWidget(w => { widget = w; host.show({ kind: 'widget', text: widgetLines(w).join('\n') }) }),
     WidgetStack, Color, Font, Size, Point, Rect, LinearGradient, Image: ImageG2, DrawContext, Path, SFSymbol,
     Data, Request, Keychain, Alert, UITable, UITableRow, UITableCell, DateFormatter, RelativeDateTimeFormatter, Timer,
     FileManager: partial('FileManager', { local: () => fm, iCloud: () => fm }),
-    QuickLook: { present: async (item: unknown) => { quickLook = describe(item) } },
+    QuickLook: { present: async (item: unknown) => { quickLook = describe(item); host.show({ kind: 'text', text: quickLook }) } },
     UUID: { string: () => uuid().toUpperCase() },
     Device: partial('Device', {
       name: () => '', systemName: () => 'iOS', systemVersion: () => '', model: () => 'G2',

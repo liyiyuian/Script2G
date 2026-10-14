@@ -38,6 +38,8 @@ export interface Host {
   log(level: 'log' | 'warn' | 'error', text: string): void
   keychainChanged(key: string, value: string | null): void
   fileChanged(path: string, value: StoredFile | null): void
+  /** Shows output while the script is still running (an in-app widget preview, QuickLook). */
+  show(output: RunResult['output']): void
 }
 
 export interface RunOptions {
@@ -50,6 +52,8 @@ export interface RunOptions {
   files: Record<string, StoredFile>
   /** Other scripts by name, for importModule. */
   modules: Record<string, string>
+  /** The script's parameter (Scriptable's widget parameter), set on the phone page. */
+  parameter?: string
 }
 
 export interface RunResult {

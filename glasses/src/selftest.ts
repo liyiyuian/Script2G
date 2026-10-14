@@ -79,6 +79,11 @@ export async function mountSelftest() {
     store.bridge = { url: q.get('bridge') ?? '', token: q.get('token') ?? '' }
     await store.saveBridge()
   }
+  for (const kv of q.getAll('kc')) { // simulator only: a Keychain value as key:value
+    const i = kv.indexOf(':')
+    if (i > 0) store.keychain[kv.slice(0, i)] = kv.slice(i + 1)
+  }
+  if (q.has('kc')) await store.saveKeychain()
   if (q.has('addtests')) {
     await addTests()
     renderScripts()
