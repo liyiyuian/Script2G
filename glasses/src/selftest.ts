@@ -98,6 +98,15 @@ export async function mountSelftest() {
     await refresh()
   }
   const pre = document.createElement('pre')
+  // Simulator only: set up a screen to screenshot (iPhone width, starred scripts, an open tab or the editor).
+  if (q.get('w')) Object.assign((document.getElementById('app') as HTMLElement).style, { maxWidth: `${q.get('w')}px`, margin: '0' })
+  for (const n of q.getAll('star')) { const s = store.scripts.find(x => x.name === n); if (s) s.fav = true }
+  if (q.has('star')) { await store.saveIndex(); renderScripts(); await refresh() }
+  if (q.get('tab')) (document.querySelector(`.tab[data-tab="${q.get('tab')}"]`) as HTMLElement | null)?.click()
+  if (q.get('edit')) {
+    const card = [...document.querySelectorAll('#scripts li')].find(li => li.querySelector('.name')?.textContent === q.get('edit'))
+    ;([...(card?.querySelectorAll('button') ?? [])].find(b => b.textContent === 'Edit') as HTMLElement | undefined)?.click()
+  }
   const section = document.createElement('section')
   const add = Object.assign(document.createElement('button'), { textContent: 'Add test scripts' })
   const run = Object.assign(document.createElement('button'), { textContent: 'Run checks', className: 'accent' })

@@ -94,6 +94,11 @@ export const store = {
     await this.saveIndex()
   },
 
+  /** Starred scripts first (they are also in the glasses menu), then the rest; alphabetical within each. */
+  ordered(): ScriptMeta[] {
+    return [...this.scripts].sort((a, b) => Number(b.fav) - Number(a.fav))
+  },
+
   async saveIndex() {
     this.scripts.sort((a, b) => a.name.localeCompare(b.name))
     await setBig('index', JSON.stringify(this.scripts))

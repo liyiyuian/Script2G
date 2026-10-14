@@ -196,7 +196,7 @@ function outputHeader(v: Extract<View, { kind: 'output' }>): string {
 
 async function render() {
   const v = view
-  if (v.kind === 'list') await showList('Scripts', paged(store.scripts.map(s => s.name), v.page).labels)
+  if (v.kind === 'list') await showList('Scripts', paged(store.ordered().map(s => s.name), v.page).labels)
   else if (v.kind === 'choice') {
     const title = [v.choice.title, v.choice.message].filter(Boolean).join(' - ')
     await showList(title, paged(v.choice.options, v.page).labels)
@@ -275,12 +275,13 @@ async function back() {
 async function pick(i: number) {
   const v = view
   if (v.kind === 'list') {
-    const r = paged(store.scripts.map(s => s.name), v.page).at(i)
+    const ordered = store.ordered()
+    const r = paged(ordered.map(s => s.name), v.page).at(i)
     if (r.page != null) {
       view = { kind: 'list', page: r.page }
       return render()
     }
-    const s = store.scripts[r.index ?? -1]
+    const s = ordered[r.index ?? -1]
     if (s) return runOnGlasses(s.id)
   } else if (v.kind === 'choice') {
     const r = paged(v.choice.options, v.page).at(i)
