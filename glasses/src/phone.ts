@@ -163,7 +163,7 @@ export function mountPhone(root: HTMLElement) {
       $('#b-status').textContent = e instanceof Error ? e.message : String(e)
     }
   }
-  events.onResult = showResult
+  events.onResult = (name, r) => { showResult(name, r); renderKeys() } // a script may have saved a Keychain value
   events.onLog = (level, text) => { if (level !== 'log') console.warn(`[script ${level}]`, text) }
   renderScripts()
   renderKeys()
