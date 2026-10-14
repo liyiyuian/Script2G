@@ -40,6 +40,16 @@ export async function ping(): Promise<void> {
   await bridgeCall('/api/ping')
 }
 
+/** The .js files in the scripts folder the bridge shares (names without .js). */
+export async function bridgeScripts(): Promise<string[]> {
+  const r = (await (await bridgeCall('/api/scripts')).json()) as { scripts: { name: string }[] }
+  return r.scripts.map(s => s.name)
+}
+
+export async function bridgeScript(name: string): Promise<string> {
+  return ((await (await bridgeCall(`/api/scripts/${encodeURIComponent(name)}`)).json()) as { source: string }).source
+}
+
 const fail = (error: string): RunResult => ({ output: { kind: 'none', text: '' }, error, unsupported: [], usedNetwork: false })
 
 export async function startRun(id: string, hooks: RunHooks, mode: 'app' | 'widget' = 'app'): Promise<RunHandle> {

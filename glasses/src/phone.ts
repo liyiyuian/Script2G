@@ -1,6 +1,6 @@
 // The phone page inside the Even app: manage scripts, Keychain values and the bridge, see the last run.
 import { store, type ScriptMeta } from './store.ts'
-import { ping } from './runner.ts'
+import { bridgeScript, bridgeScripts, ping } from './runner.ts'
 import { uuid } from './runtime/scriptable.ts'
 import { events, refresh, runOnGlasses } from './glasses.ts'
 import type { RunResult } from './runtime/types.ts'
@@ -16,7 +16,8 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLEl
 const PAGE = `
 <header><h1>Script Runner</h1><p class="dim">Your JavaScript, on your glasses.</p></header>
 <section>
-  <div class="row"><input id="search" type="search" placeholder="Search scripts"><button id="new" class="accent">New script</button></div>
+  <div class="row"><input id="search" type="search" placeholder="Search scripts"><button id="new" class="accent">New script</button><button id="import">Import from computer</button></div>
+  <ul id="imports" class="list" hidden></ul>
   <ul id="scripts" class="list"></ul>
 </section>
 <section id="editor" hidden>
@@ -83,6 +84,31 @@ async function saveEditor() {
   await refresh()
 }
 
+async function showImports() {
+  const box = $('#imports')
+  box.hidden = false
+  box.replaceChildren(el('li', { className: 'dim', textContent: 'Asking your computer…' }))
+  try {
+    const names = await bridgeScripts()
+    const rows = names.map(name => el('li', {},
+      el('span', { className: 'name', textContent: name }),
+      el('span', { className: 'actions' }, el('button', {
+        textContent: store.scripts.some(s => s.name === name) ? 'Import again (replace)' : 'Import',
+        className: 'accent',
+        onclick: async () => {
+          const old = store.scripts.find(s => s.name === name)
+          await store.saveScript(old ?? { id: uuid(), name, fav: false }, await bridgeScript(name))
+          renderScripts()
+          await refresh()
+          void showImports()
+        },
+      }))))
+    box.replaceChildren(...(rows.length ? rows : [el('li', { className: 'dim', textContent: 'The scripts folder on your computer has no .js files (or none is set).' })]))
+  } catch (e) {
+    box.replaceChildren(el('li', { className: 'dim', textContent: e instanceof Error ? e.message : String(e) }))
+  }
+}
+
 function renderKeys() {
   const rows = Object.keys(store.keychain).sort().map(k => el('li', {},
     el('span', { className: 'name', textContent: k }),
@@ -106,6 +132,7 @@ export function mountPhone(root: HTMLElement) {
   root.innerHTML = PAGE
   $('#search').oninput = renderScripts
   $('#new').onclick = () => void openEditor(null)
+  $('#import').onclick = () => void showImports()
   $('#ed-save').onclick = () => void saveEditor()
   $('#ed-cancel').onclick = () => { $('#editor').hidden = true }
   $('#key-add').onclick = async () => {

@@ -26,6 +26,9 @@ const row = w.addStack(); row.addText('Left'); row.addSpacer(); row.addText('Rig
 w.addDate(new Date()).applyTimeStyle()
 Script.setWidget(w)`,
   'Test stuck': `while (true) {}`,
+  'Test fetch': `const req = new Request('http://127.0.0.1:8795/api/health')
+const j = await req.loadJSON()
+QuickLook.present('The bridge relayed a request.\\nStatus ' + req.response.statusCode + ': ' + JSON.stringify(j))`,
   'Test 51 KB': `// ${'x'.repeat(51_000)}
 console.log('A 51 KB script ran. Its first line is', ${51_000 + 6}, 'characters long.')`,
 }
@@ -70,7 +73,12 @@ async function checks(): Promise<string[]> {
 }
 
 export async function mountSelftest() {
-  if (new URLSearchParams(location.search).has('addtests')) {
+  const q = new URLSearchParams(location.search)
+  if (q.has('bridge')) { // simulator only: point at a test bridge without typing on the phone page
+    store.bridge = { url: q.get('bridge') ?? '', token: q.get('token') ?? '' }
+    await store.saveBridge()
+  }
+  if (q.has('addtests')) {
     await addTests()
     renderScripts()
   }
