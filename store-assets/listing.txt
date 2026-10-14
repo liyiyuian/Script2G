@@ -42,6 +42,11 @@ Private by design: no accounts, no analytics, and the developer runs no server. 
 Requires the Even Realities app 2.2.10 or later. iPhone only for now.
 
 
+TAGS
+----
+scripts, automation, javascript, widgets, productivity
+
+
 CATEGORY
 --------
 Productivity (Developer tools)
