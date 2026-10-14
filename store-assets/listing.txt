@@ -30,7 +30,7 @@ Inspired by Scriptable, the iOS automation app by Simon B. Støvring. I'm a heav
 Many Scriptable scripts work as they are:
 • ListWidget widgets show as text; Alert and UITable become a list you pick from.
 • Request, Keychain, FileManager, DateFormatter, Timer, importModule and the widget parameter work.
-• Live scripts update on the glasses while they run.
+• Live scripts update on the glasses while they run, and long output scrolls smoothly (very long output is split into parts).
 • Calendar, Reminders, Contacts, Location, Photos and notifications need iOS itself, so they aren't available; scripts that use them say so clearly.
 
 Gestures: tap = run, swipe = move or scroll, double-tap = back (on the list: exit). Tap then hold opens a menu with your favourite scripts. A start script can open as soon as you launch the app.
