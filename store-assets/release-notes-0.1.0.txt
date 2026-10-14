@@ -1,0 +1,23 @@
+evenScriptable 0.1.0 — release notes (package com.liyiyuian.evenscriptable, SDK 0.0.16)
+
+HUB CHANGELOG (paste into the version's changelog field)
+------------------------------------------------------------------
+First version: add JavaScript scripts on your phone and run them on your glasses. Many Scriptable scripts work as they are; web requests go through an optional bridge on your own computer.
+Requires Even Realities app 2.2.10 or later.
+------------------------------------------------------------------
+
+FULL LOG
+- Scripts are added on the phone page (paste, or import from your computer through the bridge) and
+  run on the phone in a Web Worker with Scriptable-like APIs: ListWidget → text on the glasses,
+  Alert / UITable → a list to pick from, Request → through the bridge, Keychain and FileManager →
+  the Even app's storage, args.widgetParameter → the script's Parameter field.
+- Not available on the glasses: Calendar, Reminders, Contacts, Location, Photos, Mail/Message,
+  Notifications, WebView, Speech/Dictation; using one shows a clear error.
+- Glasses: script list (tap = run, double-tap = exit), output (swipe = scroll, tap = run again,
+  double-tap = back), choices (tap = pick, double-tap = cancel), live output while a script runs,
+  system menu (tap then hold) with favourite scripts. A start script opens at launch.
+- A script that blocks for 15 s is stopped; double-tap always stops a running script.
+- Bridge (optional, your own computer): bridge/install.sh installs scriptbridge (Python, no extra
+  packages) as a systemd user service, published only to your Tailscale network at
+  https://<your-computer>.<tailnet>.ts.net:8447 and protected by a password. Re-run install.sh to
+  upgrade; it keeps your password and settings. install.sh --uninstall removes it.
