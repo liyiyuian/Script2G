@@ -1,7 +1,7 @@
 // Compatibility report: runs every .js in a folder of Scriptable scripts, as in the app and as a widget,
 // and says what would work on the glasses.   node tests/compat.ts <folder> [report.md]
 // Scripts that make web requests are run with real network access from this computer (on the phone
-// they go through the bridge, so they are marked "needs the bridge").
+// they go through the bridge, so they are marked "needs the bridge"). Each script runs sandboxed.
 import { spawnSync } from 'node:child_process'
 import { readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -23,7 +23,10 @@ interface Report {
 }
 
 function runOne(file: string, mode: string): Report {
-  const p = spawnSync(process.execPath, [join(import.meta.dirname, 'compat-one.ts'), file, mode, dir], { encoding: 'utf8', timeout: 30_000 })
+  // Node's permission model: the script may read the app code and its own folder, and nothing else
+  // (no file writes, no child processes). Community scripts are untrusted code.
+  const sandbox = ['--permission', `--allow-fs-read=${join(import.meta.dirname, '..')}`, `--allow-fs-read=${dir}`]
+  const p = spawnSync(process.execPath, [...sandbox, join(import.meta.dirname, 'compat-one.ts'), file, mode, dir], { encoding: 'utf8', timeout: 30_000 })
   if (p.error || p.status !== 0 || !p.stdout) {
     const why = p.signal === 'SIGTERM' ? 'did not finish within 30 s' : (p.stderr || String(p.error)).trim().split('\n').pop()
     return { output: { kind: 'none', text: '' }, error: why, unsupported: [], usedNetwork: false, hosts: [], choices: [], warnings: [] }

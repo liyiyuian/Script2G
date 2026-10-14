@@ -4,6 +4,7 @@ import { getBig, setBig, store } from './store.ts'
 import { refresh } from './glasses.ts'
 import { uuid } from './runtime/scriptable.ts'
 import { renderScripts } from './phone.ts'
+import { bridgeScript, bridgeScripts } from './runner.ts'
 
 const TESTS: Record<string, string> = {
   'Test long text': `const lines = []
@@ -81,6 +82,14 @@ export async function mountSelftest() {
   if (q.has('addtests')) {
     await addTests()
     renderScripts()
+  }
+  if (q.has('importall') && store.bridge) { // load every script in the bridge's folder (the QR adds ?importall)
+    for (const name of await bridgeScripts()) {
+      const old = store.scripts.find(s => s.name === name)
+      await store.saveScript(old ?? { id: uuid(), name, fav: false }, await bridgeScript(name))
+    }
+    renderScripts()
+    await refresh()
   }
   const pre = document.createElement('pre')
   const section = document.createElement('section')
