@@ -88,6 +88,7 @@ export async function mountSelftest() {
     await addTests()
     renderScripts()
   }
+  if (q.has('openimport')) document.getElementById('import')?.click() // simulator only: show the import panel
   if (q.has('importall') && store.bridge) { // load every script in the bridge's folder (the QR adds ?importall)
     for (const name of await bridgeScripts()) {
       const old = store.scripts.find(s => s.name === name)

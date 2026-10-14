@@ -17,7 +17,11 @@ const PAGE = `
 <header><h1>EvenScriptable</h1><p class="dim">Your JavaScript, on your glasses.</p></header>
 <section>
   <div class="row"><input id="search" type="search" placeholder="Search scripts"><button id="new" class="accent">New script</button><button id="import">Import from computer</button></div>
-  <ul id="imports" class="list" hidden></ul>
+  <div id="import-panel" class="panel" hidden>
+    <div class="row spread"><h2>Import from your computer</h2><button id="import-close">Close</button></div>
+    <p class="dim">The .js files in the folder your bridge shares (~/Scripts unless you changed it).</p>
+    <ul id="imports" class="list"></ul>
+  </div>
   <ul id="scripts" class="list"></ul>
 </section>
 <section id="editor" hidden>
@@ -89,7 +93,8 @@ async function saveEditor() {
 
 async function showImports() {
   const box = $('#imports')
-  box.hidden = false
+  $('#import-panel').hidden = false
+  $('#import-panel').scrollIntoView({ behavior: 'smooth', block: 'start' })
   box.replaceChildren(el('li', { className: 'dim', textContent: 'Asking your computer…' }))
   try {
     const names = await bridgeScripts()
@@ -98,12 +103,14 @@ async function showImports() {
       el('span', { className: 'actions' }, el('button', {
         textContent: store.scripts.some(s => s.name === name) ? 'Import again (replace)' : 'Import',
         className: 'accent',
-        onclick: async () => {
+        onclick: async (e: MouseEvent) => {
+          const btn = e.currentTarget as HTMLButtonElement
+          btn.textContent = 'Importing…'
           const old = store.scripts.find(s => s.name === name)
           await store.saveScript(old ?? { id: uuid(), name, fav: false }, await bridgeScript(name))
+          btn.textContent = 'Imported ✓'
           renderScripts()
           await refresh()
-          void showImports()
         },
       }))))
     box.replaceChildren(...(rows.length ? rows : [el('li', { className: 'dim', textContent: 'The scripts folder on your computer has no .js files (or none is set).' })]))
@@ -136,6 +143,7 @@ export function mountPhone(root: HTMLElement) {
   $('#search').oninput = renderScripts
   $('#new').onclick = () => void openEditor(null)
   $('#import').onclick = () => void showImports()
+  $('#import-close').onclick = () => { $('#import-panel').hidden = true }
   $('#ed-save').onclick = () => void saveEditor()
   $('#ed-cancel').onclick = () => { $('#editor').hidden = true }
   $('#key-add').onclick = async () => {

@@ -59,13 +59,17 @@ export const store = {
 
   async load() {
     this.scripts = await getJSON('index', [])
-    this.startId = await getRaw('start')
+    this.startId = await getRaw('start').catch(() => '') // a slow storage call must not leave the glasses blank
     this.keychain = await getJSON('keychain', {})
     this.files = await getJSON('files', {})
     this.bridge = await getJSON('bridge', null)
-    if (!(await getRaw('seeded'))) { // first launch only: the one example that comes with the app
-      await this.saveScript({ id: uuid(), name: 'Time of day', fav: false }, TIME_OF_DAY)
-      await setRaw('seeded', '1')
+    try {
+      if (!(await getRaw('seeded'))) { // first launch only: the one example that comes with the app
+        await this.saveScript({ id: uuid(), name: 'Time of day', fav: false }, TIME_OF_DAY)
+        await setRaw('seeded', '1')
+      }
+    } catch {
+      // storage too slow right now: the example is added on a later launch
     }
   },
 

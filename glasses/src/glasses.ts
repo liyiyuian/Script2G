@@ -1,8 +1,9 @@
 // What the glasses show, and what each gesture does there.
 //   Script list (root):  swipe = move (firmware), tap = run, double-tap = Even's exit dialog
-//   Output:              swipe = scroll, tap = run again, double-tap = back to the list (and stop it if still running)
+//   Output:              swipe = scroll (the glasses scroll the text themselves), tap = run again,
+//                        double-tap = back to the list (and stop it if still running)
 //   Choice (Alert/UITable): tap = pick, double-tap = cancel
-//   System menu (tap then hold): "All scripts" + favourite scripts
+//   System menu (tap then hold): "All scripts", "Next part"/"Previous part" for long output, favourite scripts
 import {
   CreateStartUpPageContainer, ListContainerProperty, ListItemContainerProperty, MenuContainerProperty, MenuItemProperty,
   OsEventTypeList, RebuildPageContainer, TextContainerProperty, TextContainerUpgrade, type EvenHubEvent,
@@ -19,11 +20,15 @@ const PAD = 4
 const INNER = W - 2 * PAD
 const LINE_PX = 27 // fixed line height of the firmware font (Even's pretext docs)
 const ITEM_PX = 40 // fixed list item height (same docs); a list shorter than its box is drawn centred in it
-const LINES = 9 // lines per screen: 9 × 27 = 243 px of the 280 px inside the padding
-const STEP = 6 // a swipe scrolls this many lines
+const HEAD_H = LINE_PX + 2 * PAD // the fixed title line above a script's output
+// A text box the glasses scroll themselves holds about 1000 characters (rebuild limit; the simulator refused
+// a 1390-character update), so longer output is split into parts of up to PART_CHARS.
+const PART_CHARS = 950
 const LIST_MAX = 20 // firmware limit on list items
 const PER_PAGE = 18 // when a list is longer, 18 items + "Previous page"/"Next page"
 const MENU_ALL = 1
+const MENU_NEXT = 2
+const MENU_PREV = 3
 const MENU_FAV = 100
 
 /** Splits text into display lines at word boundaries, measured with the firmware font. */
@@ -60,11 +65,12 @@ type View =
   | { kind: 'list'; page: number }
   | { kind: 'message'; text: string }
   | { kind: 'busy'; title: string; since: number; note?: string }
-  | { kind: 'output'; title: string; lines: string[]; top: number; scriptId: string; running?: boolean; note?: string }
+  | { kind: 'output'; title: string; parts: string[]; part: number; scriptId: string; running?: boolean; note?: string }
   | { kind: 'choice'; choice: Choice; page: number; resolve: (i: number) => void }
 
 let view: View = { kind: 'message', text: '' }
-let layout: 'text' | 'list' | null = null
+let layout: 'text' | 'list' | 'output' | null = null
+let shownBody = '' // the output body on the glasses, so a header-only change keeps the scroll position
 let started = false
 let run: RunHandle | null = null
 let runSeq = 0 // which run the glasses belong to; a stopped or replaced run is ignored
@@ -76,14 +82,31 @@ let liveLast = 0
 export const events = { onResult: (_name: string, _r: RunResult) => {}, onLog: (_level: string, _text: string) => {} }
 
 function menu(): MenuContainerProperty {
-  const favs = store.scripts.filter(s => s.fav).slice(0, 9)
+  const parts = view.kind === 'output' && view.parts.length > 1
+  const favs = store.scripts.filter(s => s.fav).slice(0, parts ? 7 : 9) // the firmware allows 10 items
   menuFavIds = favs.map(s => s.id)
   return new MenuContainerProperty({
     menuItems: [
       new MenuItemProperty({ itemID: MENU_ALL, itemName: 'All scripts' }),
+      ...(parts ? [new MenuItemProperty({ itemID: MENU_NEXT, itemName: 'Next part' }), new MenuItemProperty({ itemID: MENU_PREV, itemName: 'Previous part' })] : []),
       ...favs.map((s, i) => new MenuItemProperty({ itemID: MENU_FAV + i, itemName: fitBytes(s.name, 32) })),
     ],
   })
+}
+
+/** Display lines grouped into parts that each fit one text box the glasses can scroll. */
+function toParts(text: string): string[] {
+  const parts: string[] = []
+  let cur = ''
+  for (const line of wrap(text || ' ')) {
+    if (cur && cur.length + 1 + line.length > PART_CHARS) {
+      parts.push(cur)
+      cur = ''
+    }
+    cur = cur ? `${cur}\n${line}` : line.slice(0, PART_CHARS)
+  }
+  parts.push(cur)
+  return parts
 }
 
 async function page(textObject: TextContainerProperty[], list?: ListContainerProperty) {
@@ -110,6 +133,31 @@ async function showText(content: string) {
     containerID: 1, containerName: 'main', content, isEventCapture: 1,
   })])
   layout = 'text'
+}
+
+const upgrade = (containerID: number, containerName: string, content: string) =>
+  call(b => b.textContainerUpgrade(new TextContainerUpgrade({ containerID, containerName, contentOffset: 0, contentLength: 0, content })))
+
+/** A fixed header line, and the output below it in a text box the glasses scroll themselves (no redraw per swipe). */
+async function showOutput(header: string, body: string) {
+  if (layout === 'output') {
+    await upgrade(2, 'head', header)
+    if (body !== shownBody) await upgrade(1, 'main', body) // new text starts at the top again
+    shownBody = body
+    return
+  }
+  await page([
+    new TextContainerProperty({
+      xPosition: 0, yPosition: 0, width: W, height: HEAD_H, borderWidth: 0, borderColor: 0, paddingLength: PAD,
+      containerID: 2, containerName: 'head', content: header, isEventCapture: 0,
+    }),
+    new TextContainerProperty({
+      xPosition: 0, yPosition: HEAD_H, width: W, height: H - HEAD_H, borderWidth: 0, borderColor: 0, paddingLength: PAD,
+      containerID: 1, containerName: 'main', content: body, isEventCapture: 1,
+    }),
+  ])
+  layout = 'output'
+  shownBody = body
 }
 
 async function showList(title: string, labels: string[]) {
@@ -140,11 +188,10 @@ function paged(all: string[], pageNo: number) {
   return { labels, at }
 }
 
-function outputText(v: Extract<View, { kind: 'output' }>): string {
-  const body = v.lines.slice(v.top, v.top + LINES - 1)
-  const pos = (v.lines.length > LINES - 1 ? `  ${v.top + 1}-${v.top + body.length} of ${v.lines.length}` : '')
+function outputHeader(v: Extract<View, { kind: 'output' }>): string {
+  const suffix = (v.parts.length > 1 ? `  part ${v.part + 1} of ${v.parts.length}` : '')
     + (v.running ? ' · running' : '') + (v.note ? ` · ${v.note}` : '')
-  return [pxTruncate(v.title, INNER - getTextWidth(pos)) + pos, ...body].join('\n')
+  return pxTruncate(v.title, INNER - getTextWidth(suffix)) + suffix
 }
 
 async function render() {
@@ -153,7 +200,7 @@ async function render() {
   else if (v.kind === 'choice') {
     const title = [v.choice.title, v.choice.message].filter(Boolean).join(' - ')
     await showList(title, paged(v.choice.options, v.page).labels)
-  } else if (v.kind === 'output') await showText(outputText(v))
+  } else if (v.kind === 'output') await showOutput(outputHeader(v), v.parts[v.part])
   else if (v.kind === 'busy') await showText(`${v.title}\n\nRunning...${v.note ? `\n${v.note}` : ''}`)
   else await showText(v.text)
 }
@@ -182,9 +229,9 @@ function stopRun() {
 
 /** Output a script shows while it is still running; redrawn at most once a second, the latest wins. */
 function live(title: string, scriptId: string, output: RunResult['output']) {
-  const top = view.kind === 'output' && view.scriptId === scriptId ? view.top : 0
-  const lines = wrap(output.text || ' ')
-  view = { kind: 'output', title, lines, top: Math.min(top, Math.max(0, lines.length - (LINES - 1))), scriptId, running: true }
+  const part = view.kind === 'output' && view.scriptId === scriptId ? view.part : 0
+  const parts = toParts(output.text)
+  view = { kind: 'output', title, parts, part: Math.min(part, parts.length - 1), scriptId, running: true }
   clearTimeout(liveTimer)
   liveTimer = setTimeout(() => { liveLast = Date.now(); void render() }, Math.max(0, 1000 - (Date.now() - liveLast)))
 }
@@ -212,7 +259,7 @@ export async function runOnGlasses(id: string, mode: 'app' | 'widget' = 'app') {
   clearTimeout(liveTimer)
   events.onResult(meta.name, r)
   const text = r.error ? `Error: ${r.error}${r.output.text ? `\n\n${r.output.text}` : ''}` : r.output.text || 'Done (no output).'
-  view = { kind: 'output', title: meta.name, lines: wrap(text), top: 0, scriptId: id }
+  view = { kind: 'output', title: meta.name, parts: toParts(text), part: 0, scriptId: id }
   await render()
 }
 
@@ -246,13 +293,17 @@ async function pick(i: number) {
 }
 
 // Every gesture gets a visible answer (Even's review rule), even where there is nothing to do.
-async function scroll(delta: number) {
+// While the output overflows its box the glasses scroll it themselves and send no event; a swipe event
+// means the box is at its top or end, so it moves to the previous or next part, or says "top"/"end".
+async function scroll(dir: 1 | -1) {
   const v = view
   if (v.kind === 'busy' || v.kind === 'message') return nudge()
   if (v.kind !== 'output') return
-  const top = Math.max(0, Math.min(v.top + delta, v.lines.length - (LINES - 1)))
-  v.note = top === v.top ? (delta < 0 ? 'top' : 'end') : undefined
-  v.top = top
+  const part = v.part + dir
+  if (part >= 0 && part < v.parts.length) {
+    v.part = part
+    v.note = undefined
+  } else v.note = dir < 0 ? 'top' : 'end'
   await render()
 }
 
@@ -278,6 +329,8 @@ async function onEvent(e: EvenHubEvent) {
       stopRun()
       return showRoot()
     }
+    if (id === MENU_NEXT) return scroll(1)
+    if (id === MENU_PREV) return scroll(-1)
     const fav = menuFavIds[id - MENU_FAV]
     if (fav) return runOnGlasses(fav)
     return
@@ -289,8 +342,8 @@ async function onEvent(e: EvenHubEvent) {
     if ((e.listEvent.eventType ?? OsEventTypeList.CLICK_EVENT) === OsEventTypeList.CLICK_EVENT) return pick(e.listEvent.currentSelectItemIndex ?? 0)
     return
   }
-  if (text === OsEventTypeList.SCROLL_TOP_EVENT) return scroll(-STEP)
-  if (text === OsEventTypeList.SCROLL_BOTTOM_EVENT) return scroll(STEP)
+  if (text === OsEventTypeList.SCROLL_TOP_EVENT) return scroll(-1)
+  if (text === OsEventTypeList.SCROLL_BOTTOM_EVENT) return scroll(1)
   if (sys === OsEventTypeList.CLICK_EVENT || text === OsEventTypeList.CLICK_EVENT) return tap()
   if (sys === OsEventTypeList.SYSTEM_EXIT_EVENT || sys === OsEventTypeList.ABNORMAL_EXIT_EVENT) stopRun()
   // Foreground enter/exit (also fired by opening/closing the menu) and long presses: nothing to do.
