@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scriptbridge installer — the optional computer side of Script Runner (G2 glasses), on YOUR machine.
+# scriptbridge installer — the optional computer side of EvenScriptable (G2 glasses), on YOUR machine.
 #
 #   curl -fsSL https://raw.githubusercontent.com/liyiyuian/evenScriptable/main/bridge/install.sh | bash
 #   ... | bash -s -- --uninstall      (removes the service, the tailnet address and the settings)
@@ -98,7 +98,7 @@ ok "wrote $ENV_FILE"
 mkdir -p "$UNIT_DIR"
 cat > "$UNIT_DIR/$UNIT" <<EOF
 [Unit]
-Description=scriptbridge (Script Runner bridge for G2 glasses, tailnet only)
+Description=scriptbridge (EvenScriptable bridge for G2 glasses, tailnet only)
 After=network-online.target
 
 [Service]
@@ -128,7 +128,7 @@ ok "scriptbridge is running."
 c  "Address  : $URL"
 c  "Password : $TOKEN"
 echo
-c  "On your phone: open Script Runner in the Even app → Computer → paste the address and password → Save → Test."
+c  "On your phone: open EvenScriptable in the Even app → Computer → paste the address and password → Save → Test."
 c  "Your phone must be on the same Tailscale network."
 [ -z "$DNS" ] && warn "couldn't read your Tailscale name — run 'tailscale status' and use https://<name>.ts.net:${HTTPS_PORT}."
 true

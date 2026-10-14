@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""scriptbridge — the optional computer side of Script Runner (G2 glasses).
+"""scriptbridge — the optional computer side of EvenScriptable (G2 glasses).
 
 Scripts run on your phone, but the Even app only lets the plugin reach whitelisted addresses, and the
 phone's WebView enforces CORS. This bridge runs on YOUR computer and fetches web requests for your

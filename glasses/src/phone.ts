@@ -14,7 +14,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLEl
 }
 
 const PAGE = `
-<header><h1>Script Runner</h1><p class="dim">Your JavaScript, on your glasses.</p></header>
+<header><h1>EvenScriptable</h1><p class="dim">Your JavaScript, on your glasses.</p></header>
 <section>
   <div class="row"><input id="search" type="search" placeholder="Search scripts"><button id="new" class="accent">New script</button><button id="import">Import from computer</button></div>
   <ul id="imports" class="list" hidden></ul>

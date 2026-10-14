@@ -1,0 +1,16 @@
+EvenScriptable 0.1.2 — release notes (package com.liyiyuian.evenscriptable, SDK 0.0.16)
+
+HUB CHANGELOG (paste into the version's changelog field)
+------------------------------------------------------------------
+First version: add JavaScript scripts on your phone and run them on your glasses. Many Scriptable scripts work as they are; web requests go through an optional bridge on your own computer. Comes with one example, Time of day.
+Requires Even Realities app 2.2.10 or later.
+------------------------------------------------------------------
+
+FULL LOG (0.1.2 replaces 0.1.0 and 0.1.1, which were never published)
+- New in 0.1.2: the app's display name is EvenScriptable (was "Script Runner").
+- 0.1.1: one example script, "Time of day", is added on first launch.
+- 0.1.0: scripts added on the phone run in a Web Worker with Scriptable-like APIs (ListWidget → text,
+  Alert/UITable → a list, Request → the bridge, Keychain and FileManager → the Even app's storage,
+  args.widgetParameter → the script's Parameter); live output; every gesture answers; a script that
+  blocks for 15 s is stopped; system menu with favourite scripts; optional self-hosted bridge
+  (bridge/install.sh, Tailscale-only, password).

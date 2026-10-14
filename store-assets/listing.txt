@@ -4,9 +4,9 @@ evenScriptable — Even Hub store listing (copy-and-paste)
 
 APP NAME
 --------
-Script Runner
-(The display name. "evenScriptable" can't be used here: Even rejects names that contain "Even",
-and "Scriptable" is another developer's app. Repo, project and package id stay evenScriptable.)
+EvenScriptable
+(Owner's choice, 2026-10-14. Note: Even's submission rules auto-reject display names that contain
+"Even" as first-party impersonation; if review rejects it, only this name and app.json change.)
 
 
 SUBTITLE / TAGLINE
@@ -70,7 +70,7 @@ for.
 
 TERMS & CONDITIONS
 ------------------
-evenScriptable (Script Runner) is provided "as is", without warranty of any kind. You choose and add
+EvenScriptable is provided "as is", without warranty of any kind. You choose and add
 the scripts it runs and are responsible for them and for what they access. The optional bridge runs on
 your own computer; you are responsible for installing and securing it (keep the password secret, keep it
 tailnet-only). The developer hosts no service and stores no data. Not affiliated with, endorsed by, or

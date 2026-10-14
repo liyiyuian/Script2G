@@ -6,8 +6,7 @@ they are: widgets show as text, `Alert` and `UITable` become a list you pick fro
 while they run.
 
 Inspired by Scriptable, the iOS automation app by Simon B. Støvring. This project is independent and
-not affiliated with Scriptable or its developer. (In the Even Hub the app is listed as **Script Runner**,
-since app names can't contain "Even".)
+not affiliated with Scriptable or its developer.
 
 ## How it works
 
