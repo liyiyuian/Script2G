@@ -128,7 +128,7 @@ ok "scriptbridge is running."
 c  "Address  : $URL"
 c  "Password : $TOKEN"
 echo
-c  "On your phone: open EvenScriptable in the Even app → Computer → paste the address and password → Save → Test."
+c  "On your phone: open EvenScriptable in the Even app → Computer → paste the address and password → Save and test."
 c  "Your phone must be on the same Tailscale network."
 [ -z "$DNS" ] && warn "couldn't read your Tailscale name — run 'tailscale status' and use https://<name>.ts.net:${HTTPS_PORT}."
 true

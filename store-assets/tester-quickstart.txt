@@ -3,7 +3,7 @@ Run your own JavaScript scripts on your G2 glasses. Inspired by Scriptable (iOS)
 1. Open the app in the Even app and tap New script. Paste a script, Save, then tap Run (or pick it on the glasses).
 2. On the glasses: tap = run, swipe = move/scroll, double-tap = back (on the list: exit). Tap then hold = menu with your starred scripts.
 3. Scriptable widgets show as text; Alert and UITable become a list you pick from. iOS-only features (Calendar, Contacts, Location) aren't available.
-4. Scripts that fetch web data need the optional bridge on your own computer (Tailscale): run the installer from github.com/liyiyuian/evenScriptable, then paste the address and password it prints under Computer on the phone page and tap Test.
+4. Scripts that fetch web data need the optional bridge on your own computer (Tailscale): run the installer from github.com/liyiyuian/evenScriptable, then paste the address and password it prints under Computer and tap Save and test.
 5. Values a script reads with Keychain.get (API tokens) go in the Keychain section on the phone.
 
 Your scripts and settings stay on your phone; no accounts, no analytics. Requires Even Realities app 2.2.10 or later. iPhone only for now.

@@ -41,11 +41,12 @@ and settings); `… | bash -s -- --uninstall` removes it. Settings: `~/.config/s
 ## Use
 
 1. Install the app from the Even Hub (needs the Even Realities app 2.2.10 or later; iPhone only for now).
-2. Open it in the Even app. Under **Computer**, paste the bridge's address and password → **Save** → **Test**.
+2. Open it in the Even app. Under **Computer**, paste the bridge's address and password → **Save and test**.
 3. **New script** (paste) or **Import from computer**. Put values scripts read with `Keychain.get`
    (API tokens) in the **Keychain** section. A script's **Parameter** is Scriptable's widget parameter.
 4. On the glasses: **tap** = run, **swipe** = move / scroll, **double-tap** = back (on the list: exit).
-   **Tap then hold** opens a menu with your starred scripts. A **Start** script opens at launch.
+   **Tap then hold** opens a menu with your starred scripts. Under a script's **More**: **★ Star** (top of the
+   list + glasses menu), **Open at launch**, **Delete**.
 
 ## What works
 
