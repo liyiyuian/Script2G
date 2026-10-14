@@ -171,3 +171,13 @@ test('presenting a widget or QuickLook shows it at once (live updates), and the 
   assert.deepEqual(calls.shows, ['tick 1', 'tick 2', 'param=abc'])
   assert.equal(r.output.text, 'tick 2') // a presented widget is the final output
 })
+
+test('Timer.schedule fires (repeating, then invalidated)', async () => {
+  const { host } = fakeHost()
+  const r = await runScript(`
+    let n = 0
+    await new Promise(done => { const t = Timer.schedule(20, true, () => { n++; if (n === 3) { t.invalidate(); done() } }) })
+    console.log('ticks', n)
+  `, host, opts())
+  assert.equal(r.output.text, 'ticks 3')
+})
