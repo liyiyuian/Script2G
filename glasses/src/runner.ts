@@ -1,7 +1,6 @@
 // Starts a script in a Worker and answers its host calls: web requests go through the user's bridge,
 // choices are shown on the glasses, Keychain/FileManager changes are saved after the run.
 import RunnerWorker from './worker.ts?worker&inline'
-import { runScript } from './runtime/scriptable.ts'
 import type { Choice, Host, RelayRequest, RelayResponse, RunResult } from './runtime/types.ts'
 import { store } from './store.ts'
 
@@ -91,9 +90,8 @@ export async function startRun(id: string, hooks: RunHooks, mode: 'app' | 'widge
   try {
     worker = new RunnerWorker()
   } catch (e) {
-    // No Worker available: run on the page (a script that never yields can't be stopped then).
-    hooks.log('warn', `Running without a Worker: ${e instanceof Error ? e.message : e}`)
-    return { result: runScript(source, host, opts).then(save), abort: () => {} }
+    // Never run a script on this page instead: there it could read the bridge password and couldn't be stopped.
+    return { result: Promise.resolve(fail(`Scripts can't run: the script runner (Web Worker) didn't start (${e instanceof Error ? e.message : e}).`)), abort: () => {} }
   }
 
   let finish: (r: RunResult) => void = () => {}

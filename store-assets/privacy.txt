@@ -1,5 +1,5 @@
 EvenScriptable — Privacy Policy
-Last updated: 2026-10-14
+Last updated: 2026-10-14 (bridge 0.1.1)
 
 Summary: the developer operates no server and collects no data. No accounts, no analytics, no tracking.
 
@@ -8,13 +8,16 @@ What the app stores, and where
   FileManager, and the address and password of your bridge are stored on your phone, inside the Even
   Realities app's storage for this app. They are removed when you uninstall the app.
 - This storage is not the iOS Keychain and is not separately encrypted by the app. Scripts you add can
-  read all of it, so only add scripts you trust.
+  read all of it (Keychain values, saved files, and the other scripts, which they can import), so only add
+  scripts you trust.
 
 Network
 - The app's only network permission is to reach the bridge you install on your own computer, over your
   own Tailscale network. The developer never receives these requests.
 - When a script makes a web request, your phone sends it to your bridge, and your computer fetches the
-  address the script asked for. What those sites receive is up to the scripts you run.
+  address the script asked for. What those sites receive is up to the scripts you run; they also see your
+  computer's IP address and a "scriptbridge" user agent. Scripts can't contact servers directly: inside the
+  app their only way to the web is the bridge.
 - The bridge logs only the method, path and status of each request on your computer (no addresses,
   headers or contents).
 

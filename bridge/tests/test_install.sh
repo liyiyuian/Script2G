@@ -11,6 +11,12 @@ cat > "$T/bin/tailscale" <<'EOF'
 exit 0
 EOF
 for cmd in systemctl sudo; do printf '#!/bin/sh\necho "STAND-IN %s $*" >> "$HOME/calls.log"\n' "$cmd" > "$T/bin/$cmd"; done
+cat > "$T/bin/curl" <<'EOF'
+#!/bin/sh
+# stand-in download: writes a marker bridge to the -o path
+while [ $# -gt 0 ]; do [ "$1" = "-o" ] && { printf '# DOWNLOADED BRIDGE\n' > "$2"; exit 0; }; shift; done
+exit 1
+EOF
 chmod +x "$T/bin/"*
 export HOME="$T/home" PATH="$T/bin:$PATH" BRIDGE_DRYRUN=1 BRIDGE_SRC="$HERE" XDG_CONFIG_HOME="$T/home/.config"
 ENV="$HOME/.config/scriptbridge.env"
@@ -44,7 +50,12 @@ rm -f "$ENV"
 BRIDGE_SCRIPTS_DIR_OVERRIDE=- bash "$HERE/install.sh" </dev/null >/dev/null 2>&1
 check "no folder set" 'grep -qx "BRIDGE_SCRIPTS_DIR=" "$ENV"'
 
-echo "4) uninstall"
+echo "4) a scriptbridge.py in the current folder is NOT installed (only BRIDGE_SRC or a download)"
+mkdir -p "$T/elsewhere"; printf 'print("NOT THE REAL BRIDGE")\n' > "$T/elsewhere/scriptbridge.py"
+(cd "$T/elsewhere" && env -u BRIDGE_SRC BRIDGE_SCRIPTS_DIR_OVERRIDE=- bash "$HERE/install.sh" </dev/null >/dev/null 2>&1)
+check "the download was installed, not the planted file" 'grep -q "DOWNLOADED BRIDGE" "$HOME/.local/share/scriptbridge/scriptbridge.py"'
+
+echo "5) uninstall"
 out=$(bash "$HERE/install.sh" --uninstall 2>&1)
 check "env removed" '[ ! -f "$ENV" ]'
 check "unit removed" '[ ! -f "$HOME/.config/systemd/user/scriptbridge.service" ]'

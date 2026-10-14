@@ -66,7 +66,11 @@ and settings); `… | bash -s -- --uninstall` removes it. Settings: `~/.config/s
 - Anyone with the bridge password can make your computer fetch any address it can reach, including
   services on the computer itself (that is how a script can read a local feed). Keep it tailnet-only
   and keep the password secret.
-- Scripts you add can read all Keychain values and use the bridge. Only add scripts you trust.
+- Scripts you add can read all Keychain values, import every other script (so a key written into one script
+  is readable by the others) and use the bridge. Only add scripts you trust. Inside the app a script can't
+  reach the web directly (the Worker's fetch/XMLHttpRequest/WebSocket are removed); only through the bridge.
+- The bridge logs only the method, path and status of each request. It follows http/https redirects, and drops
+  `Authorization` and `Cookie` when a redirect leaves the host.
 - Keychain values are stored in the Even app's storage, not the iOS Keychain.
 - A script that blocks for 15 s is stopped; a double-tap always stops a running script.
 

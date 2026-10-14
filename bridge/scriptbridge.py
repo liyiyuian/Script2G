@@ -24,10 +24,11 @@ import os
 import re
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 TOKEN = os.environ.get("BRIDGE_TOKEN", "")
 SCRIPTS_DIR = os.path.expanduser(os.environ.get("BRIDGE_SCRIPTS_DIR", ""))
 MAX_BODY = 5 * 1024 * 1024        # request body from the phone
@@ -37,18 +38,38 @@ HOP_HEADERS = {"host", "connection", "content-length", "transfer-encoding", "kee
                "proxy-authorization", "te", "trailer", "accept-encoding"}
 
 
+REDIRECTS = (301, 302, 303, 307, 308)
+WEB = ("http", "https")
+
+
+class Redirects(urllib.request.HTTPRedirectHandler):
+    """Follow redirects like Scriptable's Request does, but without credentials when the host changes."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new is not None and urllib.parse.urlsplit(newurl).hostname != urllib.parse.urlsplit(req.full_url).hostname:
+            for h in ("Authorization", "Cookie"):
+                new.remove_header(h)
+        return new
+
+
 class KeepErrorResponses(urllib.request.HTTPErrorProcessor):
-    """Return 4xx/5xx responses as responses (a script wants to see the status), not exceptions."""
+    """Return 4xx/5xx responses as responses (a script wants to see the status), not exceptions. A redirect
+    to http/https is followed; any other (ftp:, file:, …) comes back as the redirect response itself."""
     def http_response(self, request, response):
+        target = urllib.parse.urljoin(request.full_url, response.headers.get("location", ""))
+        if response.status in REDIRECTS and urllib.parse.urlsplit(target).scheme in WEB:
+            return super().http_response(request, response)
         return response
     https_response = http_response
 
 
-OPENER = urllib.request.build_opener(KeepErrorResponses)
+OPENER = urllib.request.build_opener(Redirects, KeepErrorResponses)
 
 
 def relay(req):
     """Performs one RelayRequest (see the app's runtime/types.ts) and returns a RelayResponse."""
+    if not isinstance(req, dict) or not isinstance(req.get("headers") or {}, dict):
+        raise ValueError("the request must be a JSON object with an object of headers")
     url = str(req.get("url", ""))
     if not re.match(r"^https?://", url, re.I):
         raise ValueError("only http and https addresses can be fetched")
@@ -85,7 +106,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def log_message(self, fmt, *args):  # method, path and status only: relayed URLs and headers can carry secrets
         status = args[1] if fmt.startswith('"%s" %s') and len(args) > 1 else "-"
-        sys.stderr.write(f"{self.command} {self.path.split('?')[0]} {status}\n")
+        line = f"{getattr(self, 'command', None) or '-'} {(getattr(self, 'path', None) or '-').split('?')[0]} {status}"
+        sys.stderr.write(re.sub(r"[\x00-\x1f\x7f]", lambda m: f"\\x{ord(m[0]):02x}", line) + "\n")
 
     def _cors(self):
         self.send_header("access-control-allow-origin", "*")
@@ -129,8 +151,11 @@ class Handler(BaseHTTPRequestHandler):
             p = script_path(urllib.request.unquote(path[len("/api/scripts/"):]) + ".js")
             if not p:
                 return self._json(404, {"error": "no such script"})
-            with open(p, encoding="utf-8", errors="replace") as f:
-                return self._json(200, {"name": os.path.basename(p)[:-3], "source": f.read()})
+            try:
+                with open(p, encoding="utf-8", errors="replace") as f:
+                    return self._json(200, {"name": os.path.basename(p)[:-3], "source": f.read()})
+            except OSError:
+                return self._json(500, {"error": "the script could not be read"})
         return self._json(404, {"error": "not found"})
 
     def do_POST(self):
@@ -138,16 +163,24 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(401, {"error": "wrong or missing password"})
         if self.path.split("?")[0] != "/api/fetch":
             return self._json(404, {"error": "not found"})
-        n = int(self.headers.get("content-length") or 0)
-        if n > MAX_BODY:
-            return self._json(413, {"error": "request too large"})
         try:
+            n = int(self.headers.get("content-length") or 0)
+            if not 0 <= n <= MAX_BODY:
+                return self._json(413, {"error": "request too large"})
             req = json.loads(self.rfile.read(n) or b"{}")
             return self._json(200, relay(req))
         except (ValueError, KeyError, TypeError) as e:
             return self._json(400, {"error": str(e)})
         except (urllib.error.URLError, OSError) as e:  # DNS failure, refused, timeout…
             return self._json(502, {"error": f"could not fetch: {getattr(e, 'reason', e)}"})
+        except Exception as e:  # anything else from the web (bad status line, …): answer, never log it
+            return self._json(502, {"error": f"could not fetch: {type(e).__name__}: {e}"})
+
+
+class Server(ThreadingHTTPServer):
+    def handle_error(self, request, client_address):
+        # The default prints a traceback, which can hold relayed URLs or headers (secrets). One line instead.
+        sys.stderr.write("a request failed\n")
 
 
 def main():
@@ -156,7 +189,7 @@ def main():
     bind = os.environ.get("BRIDGE_BIND", "127.0.0.1")
     port = int(os.environ.get("BRIDGE_PORT", "8795"))
     print(f"scriptbridge {VERSION} on http://{bind}:{port} (scripts folder: {SCRIPTS_DIR or 'none'})", flush=True)
-    ThreadingHTTPServer((bind, port), Handler).serve_forever()
+    Server((bind, port), Handler).serve_forever()
 
 
 if __name__ == "__main__":

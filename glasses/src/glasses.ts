@@ -72,6 +72,8 @@ let view: View = { kind: 'message', text: '' }
 let layout: 'text' | 'list' | 'output' | null = null
 let shownBody = '' // the output body on the glasses, so a header-only change keeps the scroll position
 let started = false
+let createTimedOut = false // the start-page call got no answer, but it may still have reached the glasses
+let retry: ReturnType<typeof setTimeout> | undefined
 let run: RunHandle | null = null
 let runSeq = 0 // which run the glasses belong to; a stopped or replaced run is ignored
 let menuFavIds: string[] = []
@@ -114,13 +116,14 @@ async function page(textObject: TextContainerProperty[], list?: ListContainerPro
     containerTotalNum: textObject.length + (list ? 1 : 0),
     textObject, listObject: list ? [list] : undefined, menuObject: menu(),
   }
-  if (started) {
-    await call(b => b.rebuildPageContainer(new RebuildPageContainer(c)))
-    return
+  if (!started) {
+    const r = await call(b => b.createStartUpPageContainer(new CreateStartUpPageContainer(c))) // throws on no answer
+    started = true // created exactly once; every later page is a rebuild
+    if (r === 0) return
+    if (!createTimedOut) return console.error('createStartUpPageContainer failed with code', r)
+    // An earlier start-page call timed out but reached the glasses after all: draw this page as a rebuild.
   }
-  started = true // created exactly once; every later page is a rebuild
-  const r = await call(b => b.createStartUpPageContainer(new CreateStartUpPageContainer(c)))
-  if (r !== 0) console.error('createStartUpPageContainer failed with code', r)
+  await call(b => b.rebuildPageContainer(new RebuildPageContainer(c)))
 }
 
 async function showText(content: string) {
@@ -194,7 +197,21 @@ function outputHeader(v: Extract<View, { kind: 'output' }>): string {
   return pxTruncate(v.title, INNER - getTextWidth(suffix)) + suffix
 }
 
+/** Draws the current view. If the glasses don't answer (Bluetooth hiccup, slow start), redraws from scratch
+ * 2 s later instead of leaving them blank or stale. */
 async function render() {
+  clearTimeout(retry)
+  try {
+    await draw()
+  } catch (e) {
+    console.warn('The glasses did not answer; drawing again shortly.', e)
+    if (!started) createTimedOut = true
+    layout = null
+    retry = setTimeout(() => void render(), 2000)
+  }
+}
+
+async function draw() {
   const v = view
   if (v.kind === 'list') await showList('Scripts', paged(store.ordered().map(s => s.name), v.page).labels)
   else if (v.kind === 'choice') {

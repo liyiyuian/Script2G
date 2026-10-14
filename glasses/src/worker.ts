@@ -5,6 +5,17 @@ import { runScript } from './runtime/scriptable.ts'
 import type { Host, RunOptions } from './runtime/types.ts'
 
 const post = (m: unknown) => (self as unknown as Worker).postMessage(m)
+
+// Scripts reach the web only through Request (the user's bridge), as the app's permissions say. Remove the
+// Worker's own network APIs, wherever they live on the prototype chain, before any script runs. Best effort:
+// scripts are the user's own code, not a sandboxed adversary.
+for (const name of ['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'importScripts', 'Worker', 'SharedWorker']) {
+  for (let o: object | null = self; o; o = Object.getPrototypeOf(o)) {
+    if (Object.prototype.hasOwnProperty.call(o, name)) {
+      try { Object.defineProperty(o, name, { value: undefined, configurable: false, writable: false }) } catch { /* fixed by the engine */ }
+    }
+  }
+}
 const pending = new Map<number, { resolve: (v: never) => void; reject: (e: Error) => void }>()
 let seq = 0
 

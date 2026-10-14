@@ -13,7 +13,8 @@
 # this computer). It listens on 127.0.0.1 and is reachable only from your tailnet. Never share the password.
 #
 # Testing hooks (not for normal use):
-#   BRIDGE_SRC=/path/to/dir           copy scriptbridge.py from a local dir instead of downloading
+#   BRIDGE_SRC=/path/to/dir           copy scriptbridge.py from a local dir (e.g. a clone: BRIDGE_SRC=.) instead of
+#                                     downloading; never picked up implicitly from the current folder
 #   BRIDGE_DRYRUN=1                   don't touch systemd/tailscale/sudo (print the commands instead)
 #   BRIDGE_SCRIPTS_DIR_OVERRIDE=…     answer the scripts-folder question ("-" = none)
 set -euo pipefail
@@ -55,7 +56,6 @@ ok "python3 $PYV"
 command -v tailscale >/dev/null && ok "tailscale" || die "tailscale not found. Install it and log in: https://tailscale.com/download"
 
 # 2) download the bridge -----------------------------------------------------
-[ -z "${BRIDGE_SRC:-}" ] && [ -f scriptbridge.py ] && BRIDGE_SRC="$(pwd)"   # run from a clone: use its file
 mkdir -p "$INSTALL_DIR"
 if [ -n "${BRIDGE_SRC:-}" ]; then cp "$BRIDGE_SRC/scriptbridge.py" "$INSTALL_DIR/scriptbridge.py"
 else curl -fsSL "$RAW/scriptbridge.py" -o "$INSTALL_DIR/scriptbridge.py" || die "could not download scriptbridge.py from $RAW"; fi

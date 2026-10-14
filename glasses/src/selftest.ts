@@ -30,6 +30,10 @@ Script.setWidget(w)`,
   'Test fetch': `const req = new Request('http://127.0.0.1:8795/api/health')
 const j = await req.loadJSON()
 QuickLook.present('The bridge relayed a request.\\nStatus ' + req.response.statusCode + ': ' + JSON.stringify(j))`,
+  'Test direct fetch': `let r
+try { r = typeof fetch === 'function' ? 'fetch still works: ' + (await fetch('http://127.0.0.1:8795/api/health')).status : 'fetch is not available' }
+catch (e) { r = 'blocked: ' + e.message }
+QuickLook.present('Direct network from a script: ' + r + '. XMLHttpRequest: ' + typeof XMLHttpRequest + ', WebSocket: ' + typeof WebSocket)`,
   'Test 51 KB': `// ${'x'.repeat(51_000)}
 console.log('A 51 KB script ran. Its first line is', ${51_000 + 6}, 'characters long.')`,
 }
