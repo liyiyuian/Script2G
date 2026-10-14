@@ -9,11 +9,11 @@ Copy-and-paste material for the Even Hub listing. The agent prepares it; you upl
   `https://raw.githubusercontent.com/liyiyuian/evenScriptable/main/store-assets/privacy.txt`.
 - `icon.svg` → `icon-512.png` — app icon (one green hue on dark, like the sibling apps). Uploaded in
   the portal; the manifest has no icon field. Re-export: `inkscape -w 512 -h 512 icon.svg -o icon-512.png`.
-- `screenshots/` — 576×288 captures from the real Even Hub simulator, using only the made-up demo
-  scripts in `demo-scripts/` (never the owner's scripts or data). Re-create with
+- `screenshots/` — 576×288 captures from the real Even Hub simulator, using only the app's preloaded
+  example and the made-up demo scripts in `demo-scripts/` (never the owner's scripts or data). Re-create with
   `./capture_screenshots.sh`:
   1. `1-script-list.png` — the script list
-  2. `2-widget.png` — a Scriptable widget shown as text (Day progress)
+  2. `2-time-of-day.png` — the example that comes with the app (Time of day), a widget shown as text
   3. `3-choice.png` — a UITable to pick from (Packing list)
   4. `4-long-list.png` — a long output that scrolls (Space launches)
   5. `5-weather.png` — another widget (Weather demo, made-up numbers)

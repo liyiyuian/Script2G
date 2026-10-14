@@ -3,6 +3,8 @@
 // Large values are split across keys of 50,000 characters, as Even's device-features skill shows.
 import { call } from './sdk.ts'
 import type { StoredFile } from './runtime/types.ts'
+import { uuid } from './runtime/scriptable.ts'
+import TIME_OF_DAY from './examples/time-of-day.js?raw'
 
 export interface ScriptMeta {
   id: string
@@ -61,6 +63,10 @@ export const store = {
     this.keychain = await getJSON('keychain', {})
     this.files = await getJSON('files', {})
     this.bridge = await getJSON('bridge', null)
+    if (!(await getRaw('seeded'))) { // first launch only: the one example that comes with the app
+      await this.saveScript({ id: uuid(), name: 'Time of day', fav: false }, TIME_OF_DAY)
+      await setRaw('seeded', '1')
+    }
   },
 
   async source(id: string): Promise<string> {

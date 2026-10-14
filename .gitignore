@@ -9,3 +9,5 @@ __pycache__/
 .env
 .env.*
 !.env.example
+CLAUDE.md
+PLAN.md

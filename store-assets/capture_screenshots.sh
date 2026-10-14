@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Store screenshots from the REAL Even Hub simulator (576x288), using only the demo scripts in
-# demo-scripts/ (made-up data). It builds the self-test build, serves it on loopback, runs a throwaway
+# Store screenshots from the REAL Even Hub simulator (576x288), using only the app's own example and the
+# demo scripts in demo-scripts/ (made-up data). It builds the self-test build, serves it on loopback, runs a throwaway
 # bridge that shares demo-scripts/, drives the simulator, and writes screenshots/*.png.
 # It stops only the processes it started (other apps' simulators keep running).   ./capture_screenshots.sh
 set -euo pipefail
@@ -27,12 +27,13 @@ start env XDG_DATA_HOME="$TMP/xdg" WEBKIT_DISABLE_COMPOSITING_MODE=1 WEBKIT_DISA
 curl -s --retry 40 --retry-connrefused --retry-delay 1 "$A/api/ping" >/dev/null
 sleep 10   # the page imports the demo scripts from the bridge
 
-# List order (alphabetical): Countdown, Day progress, Packing list, Space launches, Weather demo.
+# The app preloads "Time of day" on first launch; the bridge adds the demo scripts.
+# List order (alphabetical): Countdown, Packing list, Space launches, Time of day, Weather demo.
 shot 1-script-list.png
-inp down; inp click 3;              shot 2-widget.png          # Day progress (a widget, as text)
-inp double_click; inp down 0.8; inp down; inp click 3; shot 3-choice.png   # Packing list (UITable)
+inp down 0.8; inp down 0.8; inp down; inp click 3; shot 2-time-of-day.png   # the preloaded example
+inp double_click; inp down; inp click 3;        shot 3-choice.png             # Packing list (UITable)
 inp double_click 2.5; inp double_click
-inp down 0.8; inp down 0.8; inp down; inp click 3; shot 4-long-list.png    # Space launches (scrolls)
+inp down 0.8; inp down; inp click 3;            shot 4-long-list.png          # Space launches (scrolls)
 inp double_click; inp down 0.8; inp down 0.8; inp down 0.8; inp down; inp click 3; shot 5-weather.png
 errors="$(curl -s "$A/api/console" | python3 -c "import sys,json; d=json.load(sys.stdin); print(sum(1 for e in d['entries'] if e['level']=='error' or 'uncaught' in e['message'] or 'rejection' in e['message']))")"
 echo "console errors: $errors"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scriptbridge installer — the optional computer side of Script Runner (G2 glasses), on YOUR machine.
 #
-#   curl -fsSL https://raw.githubusercontent.com/<repo>/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/liyiyuian/evenScriptable/main/bridge/install.sh | bash
 #   ... | bash -s -- --uninstall      (removes the service, the tailnet address and the settings)
 #
 # It: checks prerequisites, downloads the bridge, makes a password, asks for an optional folder of .js
@@ -18,8 +18,8 @@
 #   BRIDGE_SCRIPTS_DIR_OVERRIDE=…     answer the scripts-folder question ("-" = none)
 set -euo pipefail
 
-REPO="${BRIDGE_REPO:-liyiyuian/scriptbridge}"   # placeholder until the public repo exists
-RAW="https://raw.githubusercontent.com/${REPO}/main"
+REPO="${BRIDGE_REPO:-liyiyuian/evenScriptable}"
+RAW="https://raw.githubusercontent.com/${REPO}/main/bridge"
 PORT="${BRIDGE_PORT:-8795}"
 HTTPS_PORT="${BRIDGE_HTTPS_PORT:-8447}"   # the app whitelists *.ts.net:8447
 INSTALL_DIR="${BRIDGE_DIR:-$HOME/.local/share/scriptbridge}"
