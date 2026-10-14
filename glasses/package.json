@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "build:selftest": "tsc --noEmit && VITE_SELFTEST=1 vite build --outDir dist-selftest",
     "test": "node --test tests/*.test.ts",
+    "compat": "node tests/compat.ts",
     "pack": "npm run build && evenhub pack app.json dist --sdk-ver 0.0.16",
     "simulate": "evenhub-simulator http://localhost:5181"
   },
