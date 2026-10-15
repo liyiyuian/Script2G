@@ -24,22 +24,22 @@ computer fetches web data for them over your own Tailscale network.
 
 DESCRIPTION
 -----------
-Run your own little programs on your glasses. Add a JavaScript script on your phone (paste it, or import it from your computer) and run it from the glasses list. One example comes with the app: Time of day.
+Run your own little programs on your glasses. Write or paste a JavaScript script on your phone, or import one from your computer, and run it from the list on your glasses. One example comes with the app: Time of day.
 
-Inspired by Scriptable, the iOS automation app by Simon B. Støvring. I'm a heavy Scriptable user and wanted the same on my G2. This app is independent and not affiliated with Scriptable or its developer.
+What your scripts can do:
+• Show text, widgets, and lists you pick from with a tap.
+• Update the glasses live while they run; long output scrolls smoothly.
+• Keep values (Keychain) and files on your phone, use timers, and load your other scripts.
+• Fetch web data through the optional bridge (below).
+Scripts run in the app's own interpreter: instant for everyday scripts, slower for heavy number-crunching. Calendar, Reminders, Contacts, Location, Photos and notifications aren't available.
 
-Many Scriptable scripts work as they are:
-• ListWidget widgets show as text; Alert and UITable become a list you pick from.
-• Request, Keychain, FileManager, DateFormatter, Timer, importModule and the widget parameter work.
-• Live scripts update on the glasses while they run, and long output scrolls smoothly (very long output is split into parts).
-• Calendar, Reminders, Contacts, Location, Photos and notifications need iOS itself, so they aren't available; scripts that use them say so clearly.
-• Scripts run in the app's own interpreter: instant for everyday scripts, slower for heavy number-crunching.
+Gestures: tap = run, swipe = move or scroll, double-tap = back (on the list: exit). Star a script to keep it at the top of the list and in the menu (tap then hold). A script can also open as soon as you launch the app.
 
-Gestures: tap = run, swipe = move or scroll, double-tap = back (on the list: exit). Star a script to put it at the top of the list and in the menu (tap then hold). A script can also open as soon as you launch the app.
+Web requests: scripts reach the web through an optional bridge on your own computer, over your own Tailscale network, protected by a password. Install it with one command from github.com/liyiyuian/Script2G. Scripts that don't fetch anything need no computer.
 
-Web requests: the Even app only lets the plugin reach approved addresses, so scripts fetch the web through an optional bridge you run on your own computer, reachable only over your own Tailscale network and protected by a password. Install it with one command from github.com/liyiyuian/Script2G. Scripts that don't fetch anything need no computer.
+Private by design: no accounts, no analytics, and the developer runs no server. Your scripts and Keychain values stay on your phone in the Even app (not the iOS Keychain, so treat them as less protected). A script you add can read those values and use your bridge, so only add scripts you trust.
 
-Private by design: no accounts, no analytics, and the developer runs no server. Your scripts and Keychain values are stored on your phone in the Even app (not the iOS Keychain, so treat them as less protected). Scripts you add can read your Keychain values and use your bridge, so only add scripts you trust.
+Many scripts written for Scriptable work as they are. Inspired by Scriptable by Simon B. Støvring, made by a heavy user of it; not affiliated with it.
 
 Requires the Even Realities app 2.2.10 or later. iPhone only for now.
 
