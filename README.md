@@ -1,4 +1,4 @@
-# evenScriptable
+# Script2G
 
 Run your own JavaScript scripts on **Even Realities G2** smart glasses. Add a script on your phone
 (in the Even app), run it from the glasses. Many [Scriptable](https://scriptable.app) scripts run as
@@ -20,7 +20,10 @@ not affiliated with Scriptable or its developer.
           G2 glasses: text, lists, gestures
 ```
 
-- **Scripts run on the phone**, in a Web Worker inside the plugin, with Scriptable-like globals.
+- **Scripts run on the phone**, in a Web Worker inside the plugin, with Scriptable-like globals. They run in a
+  JavaScript interpreter ([sval](https://github.com/Siubaak/sval)), never as engine code: the app uses no `eval`
+  or `new Function`, and scripts can't either. Everyday scripts are instant; tight loops run 20–100× slower than
+  native JavaScript.
 - The Even app only lets a plugin reach approved addresses and the WebView enforces CORS, so a script's
   `Request` goes through **scriptbridge**, a small server on your own computer, reachable only over your
   own Tailscale network and protected by a password. Scripts that don't fetch anything need no computer.
@@ -69,6 +72,8 @@ and settings); `… | bash -s -- --uninstall` removes it. Settings: `~/.config/s
 - Scripts you add can read all Keychain values, import every other script (so a key written into one script
   is readable by the others) and use the bridge. Only add scripts you trust. Inside the app a script can't
   reach the web directly (the Worker's fetch/XMLHttpRequest/WebSocket are removed); only through the bridge.
+  Nor can it run code from text: `eval`, `new Function` (in every form), string timers and WebAssembly are
+  turned off in the Worker before the interpreter loads.
 - The bridge logs only the method, path and status of each request. It follows http/https redirects, and drops
   `Authorization` and `Cookie` when a redirect leaves the host.
 - Keychain values are stored in the Even app's storage, not the iOS Keychain.
@@ -93,3 +98,7 @@ cd ../bridge && python3 -m unittest discover tests && bash tests/test_install.sh
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+Bundles [sval](https://github.com/Siubaak/sval) 0.6.12 and its parser [acorn](https://github.com/acornjs/acorn),
+both MIT-licensed. `glasses/scripts/patch-sval.mjs` fixes two sval bugs after `npm install` (a `return` inside
+`try … finally`, and `for await` over an array of promises).

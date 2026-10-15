@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "postinstall": "node scripts/patch-sval.mjs",
     "dev": "vite --port 5181 --strictPort",
     "build": "tsc --noEmit && vite build",
     "build:selftest": "tsc --noEmit && VITE_SELFTEST=1 vite build --outDir dist-selftest",
@@ -14,7 +15,8 @@
   },
   "dependencies": {
     "@evenrealities/even_hub_sdk": "0.0.16",
-    "@evenrealities/pretext": "0.1.4"
+    "@evenrealities/pretext": "0.1.4",
+    "sval": "0.6.12"
   },
   "devDependencies": {
     "@evenrealities/evenhub-cli": "0.1.14",

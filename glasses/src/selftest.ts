@@ -2,7 +2,7 @@
 import RunnerWorker from './worker.ts?worker&inline'
 import { getBig, setBig, store } from './store.ts'
 import { refresh } from './glasses.ts'
-import { uuid } from './runtime/scriptable.ts'
+import { uuid } from './runtime/uuid.ts'
 import { renderScripts } from './phone.ts'
 import { bridgeScript, bridgeScripts } from './runner.ts'
 
@@ -34,6 +34,12 @@ QuickLook.present('The bridge relayed a request.\\nStatus ' + req.response.statu
 try { r = typeof fetch === 'function' ? 'fetch still works: ' + (await fetch('http://127.0.0.1:8795/api/health')).status : 'fetch is not available' }
 catch (e) { r = 'blocked: ' + e.message }
 QuickLook.present('Direct network from a script: ' + r + '. XMLHttpRequest: ' + typeof XMLHttpRequest + ', WebSocket: ' + typeof WebSocket)`,
+  'Test interpreter': `function f() { try { return 'ok' } finally { } }
+let sum = 0; for await (const x of [Promise.resolve(1), 2]) sum += x
+const tryIt = run => { try { run(); return 'RUNS' } catch (e) { return 'blocked' } }
+QuickLook.present('finally: ' + f() + ', for await: ' + sum + '\\nFunction: ' + tryIt(() => Function('return 1')()) +
+  ', eval: ' + tryIt(() => eval('1')) + ', constructor: ' + tryIt(() => (() => {}).constructor('return 1')()) +
+  ', string timer: ' + tryIt(() => setTimeout('1', 0)) + '\\nWebAssembly: ' + typeof WebAssembly)`,
   'Test 51 KB': `// ${'x'.repeat(51_000)}
 console.log('A 51 KB script ran. Its first line is', ${51_000 + 6}, 'characters long.')`,
 }
@@ -48,7 +54,7 @@ async function addTests() {
 
 async function checks(): Promise<string[]> {
   const out: string[] = []
-  // 1. Web Worker + AsyncFunction (how scripts run).
+  // 1. Web Worker + script interpreter (how scripts run).
   try {
     const w = new RunnerWorker()
     const res = await new Promise<string>((resolve, reject) => {
@@ -58,9 +64,9 @@ async function checks(): Promise<string[]> {
       w.postMessage({ type: 'run', source: 'console.log(6 * 7)', opts: { name: 't', runsInApp: true, runsInWidget: false, keychain: {}, files: {}, modules: {} } })
     })
     w.terminate()
-    out.push(`Worker + AsyncFunction: ${res === '42' ? 'OK' : `unexpected "${res}"`}`)
+    out.push(`Worker + interpreter: ${res === '42' ? 'OK' : `unexpected "${res}"`}`)
   } catch (e) {
-    out.push(`Worker + AsyncFunction: FAILED (${e instanceof Error ? e.message : e})`)
+    out.push(`Worker + interpreter: FAILED (${e instanceof Error ? e.message : e})`)
   }
   // 2. SDK storage with a 51 KB value (two chunks).
   try {

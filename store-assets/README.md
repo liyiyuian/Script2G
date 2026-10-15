@@ -1,4 +1,4 @@
-# evenScriptable — store assets
+# Script2G — store assets
 
 Copy-and-paste material for the Even Hub listing. The agent prepares it; you upload it in the portal.
 

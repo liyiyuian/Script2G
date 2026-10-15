@@ -3,7 +3,7 @@
 // Large values are split across keys of 50,000 characters, as Even's device-features skill shows.
 import { call } from './sdk.ts'
 import type { StoredFile } from './runtime/types.ts'
-import { uuid } from './runtime/scriptable.ts'
+import { uuid } from './runtime/uuid.ts'
 import TIME_OF_DAY from './examples/time-of-day.js?raw'
 
 export interface ScriptMeta {

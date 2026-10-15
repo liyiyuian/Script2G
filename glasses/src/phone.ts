@@ -2,7 +2,7 @@
 // bridge) and Keychain (values scripts read). No confirm()/alert(): the Even WebView may not show them.
 import { store, type ScriptMeta } from './store.ts'
 import { bridgeScript, bridgeScripts, ping } from './runner.ts'
-import { uuid } from './runtime/scriptable.ts'
+import { uuid } from './runtime/uuid.ts'
 import { events, refresh, runOnGlasses } from './glasses.ts'
 import type { RunResult } from './runtime/types.ts'
 
@@ -16,7 +16,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLEl
 
 const PAGE = `
 <header class="top">
-  <h1>EvenScriptable</h1>
+  <h1>Script2G</h1>
   <p class="dim">Your JavaScript, on your G2 glasses.</p>
   <p id="notice" class="notice" hidden></p>
   <nav class="tabs">

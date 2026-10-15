@@ -1,12 +1,13 @@
-evenScriptable — Even Hub store listing (copy-and-paste)
-========================================================
+Script2G — Even Hub store listing (copy-and-paste)
+==================================================
 
 
 APP NAME
 --------
-EvenScriptable
-(Owner's choice, 2026-10-14. Note: Even's submission rules auto-reject display names that contain
-"Even" as first-party impersonation; if review rejects it, only this name and app.json change.)
+Script2G
+(Renamed from EvenScriptable on 2026-10-15: review rejected 0.1.4 because "Even" in a name, including
+look-alikes such as 3V3N, is reserved for first-party apps. The package id com.liyiyuian.evenscriptable
+is permanent and stays.)
 
 
 SUBTITLE / TAGLINE
@@ -32,6 +33,7 @@ Many Scriptable scripts work as they are:
 • Request, Keychain, FileManager, DateFormatter, Timer, importModule and the widget parameter work.
 • Live scripts update on the glasses while they run, and long output scrolls smoothly (very long output is split into parts).
 • Calendar, Reminders, Contacts, Location, Photos and notifications need iOS itself, so they aren't available; scripts that use them say so clearly.
+• Scripts run in the app's own interpreter: instant for everyday scripts, slower for heavy number-crunching.
 
 Gestures: tap = run, swipe = move or scroll, double-tap = back (on the list: exit). Star a script to put it at the top of the list and in the menu (tap then hold). A script can also open as soon as you launch the app.
 
@@ -70,7 +72,7 @@ for.
 
 TERMS & CONDITIONS
 ------------------
-EvenScriptable is provided "as is", without warranty of any kind. You choose and add
+Script2G is provided "as is", without warranty of any kind. You choose and add
 the scripts it runs and are responsible for them and for what they access. The optional bridge runs on
 your own computer; you are responsible for installing and securing it (keep the password secret, keep it
 tailnet-only). The developer hosts no service and stores no data. Not affiliated with, endorsed by, or

@@ -1,6 +1,8 @@
 // Runs a Scriptable script with Scriptable-like globals. Network, choices on the glasses, logs and
 // storage changes go through `Host`, so this file has no DOM or SDK dependency.
+import Sval from 'sval'
 import type { Host, RunOptions, RunResult, StoredFile } from './types.ts'
+import { uuid } from './uuid.ts'
 import { ListWidget, WidgetStack, makeListWidget, widgetLines } from './widgets.ts'
 
 const noop = () => {}
@@ -10,15 +12,6 @@ export function toBase64(bytes: Uint8Array): string {
   let s = ''
   for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
   return btoa(s)
-}
-
-/** A random v4 UUID. crypto.randomUUID needs a secure context (HTTPS), which a dev sideload isn't. */
-export function uuid(): string {
-  const b = crypto.getRandomValues(new Uint8Array(16))
-  b[6] = (b[6] & 0x0f) | 0x40
-  b[8] = (b[8] & 0x3f) | 0x80
-  const h = Array.from(b, x => x.toString(16).padStart(2, '0')).join('')
-  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
 }
 
 export function fromBase64(b64: string): Uint8Array {
@@ -237,6 +230,16 @@ const describe = (x: unknown): string => {
   } catch {
     return String(x)
   }
+}
+
+/** Runs a script's source in an interpreter, never as engine code (no eval or new Function), and returns what
+ * its body returns. The body sits in a block, so a script's own `const config` or `class Path` shadows a
+ * global instead of clashing with it. */
+function interpret(src: string, globals: Record<string, unknown>, module: { exports: object }, isAsync: boolean): unknown {
+  const vm = new Sval({ ecmaVer: 'latest', sourceType: 'script', sandBox: true })
+  vm.import({ ...globals, __module: module })
+  vm.run(`exports.result = (${isAsync ? 'async ' : ''}function (module, exports) {{\n${src}\n}})(__module, __module.exports)`)
+  return vm.exports.result
 }
 
 export async function runScript(source: string, host: Host, opts: RunOptions): Promise<RunResult> {
@@ -517,23 +520,19 @@ export async function runScript(source: string, host: Host, opts: RunOptions): P
   }
   for (const name of UNAVAILABLE) globals[name] = unavailable(name)
 
-  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
-  const names = Object.keys(globals)
   globals.importModule = (name: string) => {
     const key = String(name).replace(/\.js$/, '')
     const src = opts.modules[key]
     if (src == null) throw new Error(`importModule: there is no script named "${key}"`)
     const module = { exports: {} }
-    new Function(...names, 'importModule', 'module', 'exports', `{\n${src}\n}`)(...names.map(n => globals[n]), globals.importModule, module, module.exports)
+    interpret(src, globals, module, false)
     return module.exports
   }
 
   let error: string | undefined
   try {
     const module = { exports: {} }
-    // In a block, a script's own `const config` / `class Path` shadow the globals instead of clashing with them.
-    const fn = new AsyncFunction(...names, 'importModule', 'module', 'exports', `{\n${source}\n}`)
-    await fn(...names.map(n => globals[n]), globals.importModule, module, module.exports)
+    await interpret(source, globals, module, true)
   } catch (e) {
     error = e instanceof Error ? e.message : describe(e)
   }

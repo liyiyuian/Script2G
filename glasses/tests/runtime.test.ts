@@ -191,3 +191,20 @@ test('a script may declare its own variables with Scriptable names (config, args
   const m = await runScript(`console.log(importModule('lib').v)`, host, opts({ modules: { lib: 'const config = 1; module.exports.v = config + 1' } }))
   assert.equal(m.output.text, '2')
 })
+
+test('the interpreter gets try/finally and for-await right (sval fixes in scripts/patch-sval.mjs)', async () => {
+  const { host } = fakeHost()
+  const r = await runScript(`
+    function a() { try { return 'try' } finally { } }
+    function b() { try { throw new Error('x') } catch (e) { return 'catch' } finally { } }
+    function c() { try { return 'try' } finally { return 'finally' } }
+    async function d() { try { await 0; return 'async' } finally { await 0 } }
+    let n = 0
+    for (const i of [1, 2, 3]) { try { if (i === 2) continue; n += i } finally { n += 10 } }
+    let sum = 0
+    for await (const x of [Promise.resolve(1), 2, Promise.resolve(3)]) sum += x
+    console.log(a(), b(), c(), await d(), n, sum)
+  `, host, opts())
+  assert.equal(r.error, undefined)
+  assert.equal(r.output.text, 'try catch finally async 34 6')
+})

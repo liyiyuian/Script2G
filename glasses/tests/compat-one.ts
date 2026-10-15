@@ -3,10 +3,16 @@
 //   node tests/compat-one.ts <file.js> <app|widget> <folder-with-other-scripts>
 import { readFileSync, readdirSync } from 'node:fs'
 import { basename, join } from 'node:path'
-import { runScript, toBase64, fromBase64 } from '../src/runtime/scriptable.ts'
+import { blockCodeFromText } from '../src/runtime/lockdown.ts'
 import type { Host } from '../src/runtime/types.ts'
 
 const [file, mode, dir] = process.argv.slice(2)
+// As in the app's worker: before the interpreter loads, since it copies the global names then. The network stays on
+// (this harness fetches for real), and Node gets WebAssembly back afterwards for its own fetch; scripts keep the copy.
+const wasm = globalThis.WebAssembly
+blockCodeFromText()
+const { runScript, toBase64, fromBase64 } = await import('../src/runtime/scriptable.ts')
+globalThis.WebAssembly = wasm
 const hosts = new Set<string>()
 const choices: string[] = []
 const logs: string[] = []
