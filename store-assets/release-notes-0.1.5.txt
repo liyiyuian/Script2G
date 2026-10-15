@@ -3,7 +3,7 @@ First submission after 0.1.4 was rejected (2026-10-15): renamed, and scripts no 
 
 HUB CHANGELOG (paste into the version's changelog field)
 ------------------------------------------------------------------
-First version: add JavaScript scripts on your phone and run them on your glasses. Many Scriptable scripts work as they are; long output scrolls smoothly; starred scripts sit at the top; web requests go through an optional bridge on your own computer. Comes with one example, Time of day.
+First version: run your own JavaScript scripts on your glasses; many Scriptable scripts work as they are.
 Requires Even Realities app 2.2.10 or later.
 ------------------------------------------------------------------
 
