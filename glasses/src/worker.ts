@@ -5,9 +5,12 @@
 // sandboxed adversary.
 import './worker-lock.ts'
 import { runScript } from './runtime/scriptable.ts'
-import type { Host, RunOptions } from './runtime/types.ts'
+import type { Host, RunOptions, RunResult } from './runtime/types.ts'
 
-const post = (m: unknown) => (self as unknown as Worker).postMessage(m)
+// All messages go over a private port the page sends with 'run'. A script can post on the worker's own channel
+// (the interpreter can reach it), but the page doesn't listen there.
+let port: MessagePort | null = null
+const post = (m: unknown) => port?.postMessage(m)
 
 const pending = new Map<number, { resolve: (v: never) => void; reject: (e: Error) => void }>()
 let seq = 0
@@ -29,16 +32,25 @@ const host: Host = {
   show: output => post({ type: 'show', output }),
 }
 
+const unreadable: RunResult = { output: { kind: 'none', text: '' }, unsupported: [], usedNetwork: false,
+  error: "The script finished, but its result couldn't be read (an unusual value in its output or error)." }
+
 self.onmessage = async (e: MessageEvent) => {
   const m = e.data
-  if (m.type === 'reply') {
-    const p = pending.get(m.id)
-    pending.delete(m.id)
-    if (m.ok) p?.resolve(m.value as never)
-    else p?.reject(new Error(m.error))
-  } else if (m.type === 'run') {
-    // A heartbeat the page can count on: it stops only while the script blocks this thread.
-    setInterval(() => post({ type: 'alive' }), 5000)
+  if (port || m?.type !== 'run' || !e.ports[0]) return // one run per worker, started by the page
+  port = e.ports[0]
+  port.onmessage = (r: MessageEvent) => {
+    if (r.data?.type !== 'reply') return
+    const p = pending.get(r.data.id)
+    pending.delete(r.data.id)
+    if (r.data.ok) p?.resolve(r.data.value as never)
+    else p?.reject(new Error(r.data.error))
+  }
+  // A heartbeat the page can count on: it stops only while the script blocks this thread.
+  setInterval(() => post({ type: 'alive' }), 5000)
+  try { // always answer, or the page would wait on a run that has ended
     post({ type: 'done', result: await runScript(m.source as string, host, m.opts as RunOptions) })
+  } catch {
+    post({ type: 'done', result: unreadable })
   }
 }

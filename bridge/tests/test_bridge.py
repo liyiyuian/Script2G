@@ -33,7 +33,8 @@ class Target(BaseHTTPRequestHandler):
 
     def do_GET(self):
         hops = {"/redirect": "/x?from=redirect", "/redirect-ftp": "ftp://example.com/file",
-                "/redirect-other": f"http://localhost:{self.server.server_address[1]}/x?from=other"}
+                "/redirect-other": f"http://localhost:{self.server.server_address[1]}/x?from=other",
+                "/redirect-port": f"{TARGET2_URL}/x?from=port"}
         if self.path in hops:
             self.send_response(302)
             self.send_header("location", hops[self.path])
@@ -62,6 +63,7 @@ def serve(handler):
 
 
 TARGET, TARGET_URL = serve(Target)
+TARGET2, TARGET2_URL = serve(Target)  # same host, another port
 
 
 def not_http_server():
@@ -184,6 +186,9 @@ class HardeningTests(unittest.TestCase):
         _, _, r = call("/api/fetch", {"url": TARGET_URL + "/redirect-other", "headers": {"Authorization": "Bearer site"}, "timeoutSec": 5})
         body = json.loads(base64.b64decode(r["bodyBase64"]))
         self.assertEqual((r["status"], body["path"], body["auth"]), (200, "/x?from=other", None))  # credentials dropped
+        _, _, r = call("/api/fetch", {"url": TARGET_URL + "/redirect-port", "headers": {"Authorization": "Bearer site"}, "timeoutSec": 5})
+        body = json.loads(base64.b64decode(r["bodyBase64"]))
+        self.assertEqual((r["status"], body["path"], body["auth"]), (200, "/x?from=port", None))  # another port: dropped too
         _, _, r = call("/api/fetch", {"url": TARGET_URL + "/redirect-ftp", "timeoutSec": 5})
         self.assertEqual(r["status"], 302)
 

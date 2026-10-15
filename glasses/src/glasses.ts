@@ -118,13 +118,13 @@ async function showOutput(header: string, body: string, multi: boolean) {
 }
 
 async function showList(title: string, labels: string[]) {
-  const head = title ? wrap(title).slice(0, 4) : []
+  const head = title ? wrap(title.slice(0, 1000)).slice(0, 4) : [] // capped first: measuring a huge title blocks the page
   const headH = head.length ? head.length * LINE_PX + 2 * PAD : 0
   const texts = head.length ? [new TextContainerProperty({
     xPosition: 0, yPosition: 0, width: W, height: headH, borderWidth: 0, borderColor: 0, paddingLength: PAD,
     containerID: 2, containerName: 'head', content: head.join('\n'), isEventCapture: 0,
   })] : []
-  const items = (labels.length ? labels : ['(nothing)']).map(l => pxTruncate(l, W - 40).slice(0, 64))
+  const items = (labels.length ? labels : ['(nothing)']).map(l => pxTruncate(l.slice(0, 200), W - 40).slice(0, 64))
   await page(texts, new ListContainerProperty({
     xPosition: 0, yPosition: headH, width: W, height: Math.min(H - headH, items.length * ITEM_PX), borderWidth: 0, borderColor: 0, paddingLength: 0,
     containerID: 3, containerName: 'list', isEventCapture: 1,
@@ -148,7 +148,7 @@ function paged(all: string[], pageNo: number) {
 function outputHeader(v: Extract<View, { kind: 'output' }>): string {
   const suffix = (v.parts.length > 1 ? `  part ${v.part + 1} of ${v.parts.length}` : '')
     + (v.running ? ' · running' : '') + (v.note ? ` · ${v.note}` : '')
-  return pxTruncate(v.title, INNER - getTextWidth(suffix)) + suffix
+  return pxTruncate(v.title.slice(0, 200), INNER - getTextWidth(suffix)) + suffix
 }
 
 /** Draws the current view, one draw at a time: overlapping draws interleaved their calls and could leave a

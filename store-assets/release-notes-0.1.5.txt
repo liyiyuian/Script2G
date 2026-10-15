@@ -26,6 +26,33 @@ Review fixes:
 - Known cost: tight loops run about 20–100× slower than before (1 million additions: 3 ms → 0.3 s);
   everyday scripts are unaffected (today.js and the demo scripts give identical output). A script that keeps
   the worker busy for 15 s is still stopped as frozen.
+Security review (each finding reproduced before the fix; browser APIs in Chromium, iPhone WebKit not tested):
+- Scripts could still reach the web directly through font loading (FontFace), cache storage (caches) and
+  WebSocketStream: a test script sent a Keychain value to a local server. These are now removed too,
+  wherever they live in the worker (a script can reach the worker's real global through the interpreter).
+- setTimeout/setInterval with a string still ran it as code through the worker's prototype; now blocked there too.
+- A script could post fake messages to the page (fake web requests, Keychain/file writes, a fake "done" that
+  left the glasses on "Running…"). The page and worker now talk over a private channel the script can't reach.
+- A script whose result couldn't be read (e.g. widget text set to a number) left the glasses on "Running…";
+  the worker now always answers.
+- The try/finally fix lost the return value when the finally block called a function; corrected.
+- Very long Alert titles, choices or script names could block the page for a moment; they are cut first.
+- "__proto__" is refused as a Keychain name; importModule('constructor') says there is no such script.
+- Bridge 0.1.2: a redirect to the same host on another port kept Authorization/Cookie; they are now dropped
+  whenever the scheme, host or port changes.
+- Compatibility tool (developer only): scripts it runs get no `process` and no environment variables.
+- Every build applies the sval fixes (they could be skipped by npm install --ignore-scripts).
+Phone page:
+- Script cards are one row: ☆/★ (star), name, Edit, Run. Open at launch and Delete moved into Edit, which
+  also gains "Save and run on glasses". "Import from computer" is now "Import"; the gesture hint sits at the top.
+- Computer tab: once connected it shows a short summary (Test again, Change, Remove) instead of the setup
+  steps; Remove needs a second tap; the fields always show what is saved.
+- Buttons are at least 44 px tall; names wrap between words on narrow phones.
+Efficiency:
+- A run reads other scripts from storage only if it uses importModule (before: every script, one at a time,
+  on the first run after launch; a slow or failed read of an unrelated script delayed or failed the run).
+- Measured, left as is: a run starts its worker in ~18 ms and finishes Time of day in ~40 ms; the interpreter
+  adds ~7 ms to launch (simulator on a desktop; iPhone numbers not measured).
 App:
 - Wrapping a long word with no spaces took minutes and froze the page (even double-tap couldn't exit);
   it now takes milliseconds. Output over 20,000 characters is cut and says so.

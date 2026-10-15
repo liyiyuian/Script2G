@@ -33,13 +33,23 @@ QuickLook.present('The bridge relayed a request.\\nStatus ' + req.response.statu
   'Test direct fetch': `let r
 try { r = typeof fetch === 'function' ? 'fetch still works: ' + (await fetch('http://127.0.0.1:8795/api/health')).status : 'fetch is not available' }
 catch (e) { r = 'blocked: ' + e.message }
-QuickLook.present('Direct network from a script: ' + r + '. XMLHttpRequest: ' + typeof XMLHttpRequest + ', WebSocket: ' + typeof WebSocket)`,
+const real = Object.values(Object.getPrototypeOf(globalThis))[0] || {} // the worker's own global, through the interpreter
+const left = ['fetch', 'XMLHttpRequest', 'WebSocket', 'WebSocketStream', 'WebTransport', 'EventSource', 'importScripts', 'Worker',
+  'SharedWorker', 'FontFace', 'fonts', 'caches'].filter(n => typeof globalThis[n] !== 'undefined' || typeof real[n] !== 'undefined')
+QuickLook.present('Direct network from a script: ' + r + '.\\nStill reachable: ' + (left.join(', ') || 'none'))`,
   'Test interpreter': `function f() { try { return 'ok' } finally { } }
 let sum = 0; for await (const x of [Promise.resolve(1), 2]) sum += x
 const tryIt = run => { try { run(); return 'RUNS' } catch (e) { return 'blocked' } }
 QuickLook.present('finally: ' + f() + ', for await: ' + sum + '\\nFunction: ' + tryIt(() => Function('return 1')()) +
   ', eval: ' + tryIt(() => eval('1')) + ', constructor: ' + tryIt(() => (() => {}).constructor('return 1')()) +
-  ', string timer: ' + tryIt(() => setTimeout('1', 0)) + '\\nWebAssembly: ' + typeof WebAssembly)`,
+  ', string timer: ' + tryIt(() => setTimeout('1', 0)) + '\\nWebAssembly: ' + typeof WebAssembly + ', string timer elsewhere: ' + elsewhere())
+function elsewhere() { // setTimeout may also live on the global's prototypes, reachable through the real global
+  const real = Object.values(Object.getPrototypeOf(globalThis))[0] || {}
+  const found = []
+  for (let o = real; o; o = Object.getPrototypeOf(o)) if (Object.prototype.hasOwnProperty.call(o, 'setTimeout')) found.push(tryIt(() => o.setTimeout.call(real, '1', 0)))
+  return found.join('/') || 'none found'
+}`,
+  'Test importModule': `importModule('Test 51 KB')\nconsole.log('importModule works: it loaded another script.')`,
   'Test 51 KB': `// ${'x'.repeat(51_000)}
 console.log('A 51 KB script ran. Its first line is', ${51_000 + 6}, 'characters long.')`,
 }
@@ -57,11 +67,12 @@ async function checks(): Promise<string[]> {
   // 1. Web Worker + script interpreter (how scripts run).
   try {
     const w = new RunnerWorker()
+    const ch = new MessageChannel()
     const res = await new Promise<string>((resolve, reject) => {
       const t = setTimeout(() => reject(new Error('no answer in 5 s')), 5000)
-      w.onmessage = e => { if (e.data.type === 'done') { clearTimeout(t); resolve(e.data.result.output.text) } }
+      ch.port1.onmessage = e => { if (e.data.type === 'done') { clearTimeout(t); resolve(e.data.result.output.text) } }
       w.onerror = e => { clearTimeout(t); reject(new Error(e.message || 'worker error')) }
-      w.postMessage({ type: 'run', source: 'console.log(6 * 7)', opts: { name: 't', runsInApp: true, runsInWidget: false, keychain: {}, files: {}, modules: {} } })
+      w.postMessage({ type: 'run', source: 'console.log(6 * 7)', opts: { name: 't', runsInApp: true, runsInWidget: false, keychain: {}, files: {}, modules: {} } }, [ch.port2])
     })
     w.terminate()
     out.push(`Worker + interpreter: ${res === '42' ? 'OK' : `unexpected "${res}"`}`)

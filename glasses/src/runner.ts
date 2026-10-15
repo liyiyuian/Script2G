@@ -57,7 +57,9 @@ export async function startRun(id: string, hooks: RunHooks, mode: 'app' | 'widge
   const meta = store.scripts.find(s => s.id === id)
   const source = await store.source(id)
   const modules: Record<string, string> = {}
-  for (const s of store.scripts) if (s.id !== id) modules[s.name] = await store.source(s.id)
+  // Other scripts are only needed by importModule. Reading them all would make a run wait on storage reads of
+  // unrelated scripts (one at a time through the Even app) and fail if one of them can't be read.
+  if (source.includes('importModule')) for (const s of store.scripts) if (s.id !== id) modules[s.name] = await store.source(s.id)
   const opts = {
     name: meta?.name ?? 'Script', runsInApp: mode === 'app', runsInWidget: mode === 'widget',
     keychain: store.keychain, files: store.files, modules, parameter: meta?.param,
@@ -100,6 +102,8 @@ export async function startRun(id: string, hooks: RunHooks, mode: 'app' | 'widge
     return { result: Promise.resolve(fail(`Scripts can't run: the script runner (Web Worker) didn't start (${e instanceof Error ? e.message : e}).`)), abort: () => {} }
   }
 
+  const channel = new MessageChannel() // private: the script can post on the worker's own channel, not on this one
+  const port = channel.port1
   let finish: (r: RunResult) => void = () => {}
   const result = new Promise<RunResult>(resolve => { finish = resolve })
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -109,6 +113,7 @@ export async function startRun(id: string, hooks: RunHooks, mode: 'app' | 'widge
     ended = true
     clearTimeout(timer)
     worker.terminate()
+    port.close()
     void save(r).then(finish)
   }
   const touch = () => {
@@ -118,7 +123,7 @@ export async function startRun(id: string, hooks: RunHooks, mode: 'app' | 'widge
   }
 
   worker.onerror = e => end(fail(e.message || 'The script could not start.'))
-  worker.onmessage = async (e: MessageEvent) => {
+  port.onmessage = async (e: MessageEvent) => {
     const m = e.data
     touch()
     if (m.type === 'done') end(m.result as RunResult)
@@ -129,13 +134,13 @@ export async function startRun(id: string, hooks: RunHooks, mode: 'app' | 'widge
     else if (m.type === 'call') {
       try {
         const value = m.op === 'fetch' ? await host.fetch(m.payload) : await host.present(m.payload)
-        worker.postMessage({ type: 'reply', id: m.id, ok: true, value })
+        port.postMessage({ type: 'reply', id: m.id, ok: true, value })
       } catch (err) {
-        worker.postMessage({ type: 'reply', id: m.id, ok: false, error: err instanceof Error ? err.message : String(err) })
+        port.postMessage({ type: 'reply', id: m.id, ok: false, error: err instanceof Error ? err.message : String(err) })
       }
     }
   }
   touch()
-  worker.postMessage({ type: 'run', source, opts })
+  worker.postMessage({ type: 'run', source, opts }, [channel.port2])
   return { result, abort: () => end(fail('Stopped.')) }
 }

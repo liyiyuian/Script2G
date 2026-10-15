@@ -24,9 +24,11 @@ interface Report {
 
 function runOne(file: string, mode: string): Report {
   // Node's permission model: the script may read the app code and its own folder, and nothing else
-  // (no file writes, no child processes). Community scripts are untrusted code.
+  // (no file writes, no child processes). Community scripts are untrusted code, so they also get none of this
+  // computer's environment variables (only PATH, and the documented COMPAT_PARAM).
   const sandbox = ['--permission', `--allow-fs-read=${join(import.meta.dirname, '..')}`, `--allow-fs-read=${dir}`]
-  const p = spawnSync(process.execPath, [...sandbox, join(import.meta.dirname, 'compat-one.ts'), file, mode, dir], { encoding: 'utf8', timeout: 30_000 })
+  const env = { PATH: process.env.PATH ?? '', ...(process.env.COMPAT_PARAM ? { COMPAT_PARAM: process.env.COMPAT_PARAM } : {}) }
+  const p = spawnSync(process.execPath, [...sandbox, join(import.meta.dirname, 'compat-one.ts'), file, mode, dir], { encoding: 'utf8', timeout: 30_000, env })
   if (p.error || p.status !== 0 || !p.stdout) {
     const shows = (p.stderr || '').split('\n').filter(l => l.startsWith('SHOW '))
     if (p.signal === 'SIGTERM' && shows.length) { // still updating itself when the time ran out: a live script

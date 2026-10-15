@@ -45,11 +45,12 @@ and settings); `… | bash -s -- --uninstall` removes it. Settings: `~/.config/s
 
 1. Install the app from the Even Hub (needs the Even Realities app 2.2.10 or later; iPhone only for now).
 2. Open it in the Even app. Under **Computer**, paste the bridge's address and password → **Save and test**.
-3. **New script** (paste) or **Import from computer**. Put values scripts read with `Keychain.get`
+3. **New script** (paste) or **Import** (from your computer). Put values scripts read with `Keychain.get`
    (API tokens) in the **Keychain** section. A script's **Parameter** is Scriptable's widget parameter.
 4. On the glasses: **tap** = run, **swipe** = move / scroll, **double-tap** = back (on the list: exit).
-   **Tap then hold** opens a menu with your starred scripts. Under a script's **More**: **★ Star** (top of the
-   list + glasses menu), **Open at launch**, **Delete**.
+   **Tap then hold** opens a menu with your starred scripts. On the phone, **☆** stars a script (top of the
+   list + glasses menu); **Edit** has **Save and run on glasses**, **Open this script when the app starts** and
+   **Delete script**.
 
 ## What works
 
@@ -71,11 +72,12 @@ and settings); `… | bash -s -- --uninstall` removes it. Settings: `~/.config/s
   and keep the password secret.
 - Scripts you add can read all Keychain values, import every other script (so a key written into one script
   is readable by the others) and use the bridge. Only add scripts you trust. Inside the app a script can't
-  reach the web directly (the Worker's fetch/XMLHttpRequest/WebSocket are removed); only through the bridge.
+  reach the web directly (the Worker's fetch, XMLHttpRequest, WebSocket, font and cache loading are removed, wherever
+  they live); only through the bridge.
   Nor can it run code from text: `eval`, `new Function` (in every form), string timers and WebAssembly are
   turned off in the Worker before the interpreter loads.
 - The bridge logs only the method, path and status of each request. It follows http/https redirects, and drops
-  `Authorization` and `Cookie` when a redirect leaves the host.
+  `Authorization` and `Cookie` when a redirect changes scheme, host or port.
 - Keychain values are stored in the Even app's storage, not the iOS Keychain.
 - A script that blocks for 15 s is stopped; a double-tap always stops a running script.
 

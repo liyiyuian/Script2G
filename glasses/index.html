@@ -34,7 +34,7 @@
       .small { font-size: 13px; }
       .note { font-size: 13px; color: var(--text-dim); min-height: 1em; margin: 8px 0; }
       .notice { padding: 12px 16px; border-radius: 12px; background: var(--surface); color: #d93025; font-size: 14px; margin: 12px 0 0; }
-      .hint { font-size: 13px; color: var(--text-dim); margin-top: 24px; }
+      .hint { font-size: 13px; color: var(--text-dim); margin: 4px 0 8px; }
       .row { display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap; align-items: center; }
       .row.nowrap { flex-wrap: nowrap; }
       .row.spread { justify-content: space-between; }
@@ -46,7 +46,7 @@
       textarea { min-height: 240px; font: 13px/1.4 ui-monospace, Menlo, monospace; }
       label { display: block; font-size: 13px; color: var(--text-dim); margin-top: 12px; }
       button {
-        min-height: 40px; padding: 8px 14px; border: 0; border-radius: 12px; background: var(--surface);
+        min-height: 44px; padding: 8px 14px; border: 0; border-radius: 12px; background: var(--surface);
         color: var(--text); font: inherit; font-size: 15px;
       }
       button.accent { background: var(--accent); color: var(--on-accent); font-weight: 500; }
@@ -56,14 +56,21 @@
       .tab { flex: 1; min-height: 36px; background: transparent; color: var(--text-dim); }
       .tab.active { background: var(--bg); color: var(--text); font-weight: 500; }
       .list { list-style: none; padding: 0; margin: 0; }
-      .list li { background: var(--surface); border-radius: 12px; padding: 16px; margin: 8px 0; }
-      .list .name { font-weight: 500; overflow-wrap: anywhere; }
+      .list li { background: var(--surface); border-radius: 12px; padding: 12px; margin: 8px 0; }
+      .list .name { font-weight: 500; overflow-wrap: break-word; min-width: 0; max-width: 100%; }
       .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-      .badges { display: flex; gap: 6px; flex-wrap: wrap; }
       .badge { font-size: 11px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 8px;
         border-radius: 8px; background: var(--input); color: var(--text-dim); }
-      .actions, .more { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-      .more { padding-top: 12px; border-top: 1px solid var(--input); }
+      .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+      /* A script card: star, name, Edit, Run on one row */
+      .list li.card { padding-left: 4px; } /* the star button brings its own space */
+      .card-row { display: flex; align-items: center; gap: 4px; }
+      .card-name { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+      button.icon { min-width: 44px; padding: 0; font-size: 22px; background: transparent; color: var(--text-dim); }
+      button.icon.on { color: var(--text); }
+      .check { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px; color: var(--text); margin: 8px 0 0; }
+      .check input { flex: none; width: 22px; height: 22px; margin: 0; }
+      #ed-run { margin-top: 4px; }
       .result { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--input); font-size: 13px; }
       .result.error pre { color: #d93025; }
       pre { white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0 0; font: 13px/1.4 ui-monospace, Menlo, monospace; }

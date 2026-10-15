@@ -27,7 +27,8 @@ const PAGE = `
 </header>
 
 <section data-panel="scripts">
-  <div class="row"><button id="new" class="accent grow">+ New script</button><button id="import" class="grow">Import from computer</button></div>
+  <div class="row nowrap"><button id="new" class="accent grow">+ New script</button><button id="import" class="grow">Import</button></div>
+  <p class="hint">On the glasses: <b>tap</b> runs · <b>swipe</b> moves or scrolls · <b>double-tap</b> goes back · <b>tap then hold</b> opens the menu with your ★ scripts.</p>
   <div id="import-panel" class="panel" hidden>
     <div class="row spread"><h2>Import from your computer</h2><button id="import-close">Close</button></div>
     <p class="dim">The .js files in the folder your bridge shares (~/Scripts unless you changed it).</p>
@@ -35,20 +36,22 @@ const PAGE = `
   </div>
   <input id="search" type="search" placeholder="Search scripts" hidden>
   <ul id="scripts" class="list"></ul>
-  <p class="hint">On the glasses: <b>tap</b> runs · <b>swipe</b> moves or scrolls · <b>double-tap</b> goes back · <b>tap then hold</b> opens the menu.</p>
 </section>
 
 <section data-panel="computer" hidden>
   <div id="b-state" class="status"></div>
-  <p class="dim">Only needed for scripts that load data from the web or from your computer. Your phone sends those requests to a small bridge on your own computer, over your own Tailscale network. Scripts that don't fetch anything work without it.</p>
-  <ol class="steps">
-    <li><b>Install the bridge on your computer.</b> One command; the steps are at github.com/liyiyuian/evenScriptable (Linux, Tailscale).</li>
-    <li><b>Paste the address</b> the installer printed.<input id="b-url" placeholder="It starts with https and ends with :8447" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></li>
-    <li><b>Paste the password</b> it printed.
-      <div class="row nowrap"><input id="b-token" type="password" placeholder="Bridge password" autocapitalize="off" autocomplete="off" spellcheck="false"><button id="b-show">Show</button></div>
-    </li>
-  </ol>
-  <div class="row"><button id="b-save" class="accent grow">Save and test</button><button id="b-remove" hidden>Remove</button></div>
+  <div id="b-summary" class="row" hidden><button id="b-test">Test again</button><button id="b-change">Change</button><span id="b-remove-slot"></span></div>
+  <div id="b-setup">
+    <p class="dim">Only needed for scripts that load data from the web or from your computer. Your phone sends those requests to a small bridge on your own computer, over your own Tailscale network. Scripts that don't fetch anything work without it.</p>
+    <ol class="steps">
+      <li><b>Install the bridge on your computer.</b> One command; the steps are at github.com/liyiyuian/evenScriptable (Linux, Tailscale).</li>
+      <li><b>Paste the address</b> the installer printed.<input id="b-url" placeholder="It starts with https and ends with :8447" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></li>
+      <li><b>Paste the password</b> it printed.
+        <div class="row nowrap"><input id="b-token" type="password" placeholder="Bridge password" autocapitalize="off" autocomplete="off" spellcheck="false"><button id="b-show">Show</button></div>
+      </li>
+    </ol>
+    <div class="row"><button id="b-save" class="accent grow">Save and test</button><button id="b-cancel" hidden>Cancel</button></div>
+  </div>
   <p id="b-status" class="note"></p>
 </section>
 
@@ -68,20 +71,23 @@ const PAGE = `
   <p class="dim small">Scripts read it as <code>args.widgetParameter</code>.</p>
   <label class="grow-label">Code<textarea id="ed-code" placeholder="Paste or type JavaScript" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea></label>
   <p id="ed-status" class="note"></p>
+  <button id="ed-run" class="accent">Save and run on glasses</button>
+  <label class="check"><input id="ed-start" type="checkbox"> Open this script when the app starts</label>
+  <div id="ed-delete-slot"></div>
 </div>`
 
 let editing: ScriptMeta | null = null
-let openMore = '' // id of the script whose extra actions are shown
+let changingBridge = false // the Computer tab shows the setup form while connected
 const results = new Map<string, { r: RunResult; at: Date }>() // last result per script name
 const running = new Set<string>()
 
 /** A button that needs a second tap within 3 s, for anything that deletes. */
-function confirmButton(label: string, onConfirm: () => void | Promise<void>, cls = 'danger') {
-  const b = el('button', { textContent: label, className: cls })
+function confirmButton(label: string, onConfirm: () => void | Promise<void>, armedLabel = 'Tap again to delete') {
+  const b = el('button', { textContent: label, className: 'danger' })
   let armed: ReturnType<typeof setTimeout> | undefined
   b.onclick = async () => {
     if (!armed) {
-      b.textContent = 'Tap again to delete'
+      b.textContent = armedLabel
       armed = setTimeout(() => { b.textContent = label; armed = undefined }, 3000)
       return
     }
@@ -110,7 +116,11 @@ const safe = <A extends unknown[]>(fn: (...a: A) => Promise<unknown> | unknown) 
 function showTab(name: string) {
   for (const t of document.querySelectorAll<HTMLButtonElement>('.tab')) t.classList.toggle('active', t.dataset.tab === name)
   for (const p of document.querySelectorAll<HTMLElement>('[data-panel]')) p.hidden = p.dataset.panel !== name
-  if (name === 'computer') void checkBridge()
+  if (name === 'computer') {
+    changingBridge = false
+    renderComputer()
+    void checkBridge()
+  }
   if (name === 'keychain') renderKeys()
 }
 
@@ -133,41 +143,16 @@ export function renderScripts() {
   search.hidden = store.scripts.length < 6
   const q = search.value.trim().toLowerCase()
   const rows = store.ordered().filter(s => s.name.toLowerCase().includes(q)).map(s => {
-    const badges = el('span', { className: 'badges' })
-    if (store.startId === s.id) badges.append(el('span', { className: 'badge', textContent: 'Opens at launch' }))
-    if (s.fav) badges.append(el('span', { className: 'badge', textContent: '★ Starred' }))
-    const run = el('button', {
-      textContent: running.has(s.name) ? 'Running…' : 'Run', className: 'accent',
-      onclick: () => {
-        running.add(s.name)
-        renderScripts()
-        void runOnGlasses(s.id).catch(report).finally(() => { running.delete(s.name); renderScripts() })
-      },
+    const star = el('button', {
+      className: s.fav ? 'icon on' : 'icon', textContent: s.fav ? '★' : '☆', ariaLabel: s.fav ? 'Unstar' : 'Star',
+      onclick: safe(async () => { s.fav = !s.fav; await store.saveIndex(); renderScripts(); await refresh() }),
     })
-    const more = el('div', { className: 'more' })
-    more.hidden = openMore !== s.id
-    more.append(
-      el('button', {
-        textContent: s.fav ? '★ Unstar' : '☆ Star (top of the list + glasses menu)',
-        onclick: safe(async () => { s.fav = !s.fav; await store.saveIndex(); renderScripts(); await refresh() }),
-      }),
-      el('button', {
-        textContent: store.startId === s.id ? "Don't open at launch" : 'Open at launch',
-        onclick: safe(async () => { await store.setStart(store.startId === s.id ? '' : s.id); renderScripts() }),
-      }),
-      confirmButton('Delete', async () => {
-        await store.deleteScript(s.id)
-        results.delete(s.name)
-        renderScripts()
-        await refresh()
-      }),
-    )
-    const li = el('li', {},
-      el('div', { className: 'card-head' }, el('span', { className: 'name', textContent: s.name }), badges),
-      el('div', { className: 'actions' }, run,
+    const name = el('div', { className: 'card-name' }, el('span', { className: 'name', textContent: s.name }))
+    if (store.startId === s.id) name.append(el('span', { className: 'badge', textContent: 'Opens at launch' }))
+    const li = el('li', { className: 'card' },
+      el('div', { className: 'card-row' }, star, name,
         el('button', { textContent: 'Edit', onclick: () => void openEditor(s) }),
-        el('button', { textContent: openMore === s.id ? 'Less' : 'More', onclick: () => { openMore = openMore === s.id ? '' : s.id; renderScripts() } })),
-      more)
+        el('button', { textContent: running.has(s.name) ? 'Running…' : 'Run', className: 'accent', onclick: () => runFromPhone(s) })))
     const res = resultBlock(s.name)
     if (res) li.append(res)
     return li
@@ -178,12 +163,26 @@ export function renderScripts() {
   $('#scripts').replaceChildren(...(rows.length ? rows : [empty]))
 }
 
+function runFromPhone(s: ScriptMeta) {
+  running.add(s.name)
+  renderScripts()
+  void runOnGlasses(s.id).catch(report).finally(() => { running.delete(s.name); renderScripts() })
+}
+
 async function openEditor(s: ScriptMeta | null) {
   editing = s
   $('#ed-title').textContent = s ? 'Edit script' : 'New script'
   $<HTMLInputElement>('#ed-name').value = s?.name ?? ''
   $<HTMLInputElement>('#ed-param').value = s?.param ?? ''
   $<HTMLTextAreaElement>('#ed-code').value = s ? await store.source(s.id) : ''
+  $<HTMLInputElement>('#ed-start').checked = !!s && store.startId === s.id
+  $('#ed-delete-slot').replaceChildren(...(s ? [confirmButton('Delete script', async () => {
+    await store.deleteScript(s.id)
+    results.delete(s.name)
+    closeEditor()
+    renderScripts()
+    await refresh()
+  })] : []))
   $('#ed-status').textContent = ''
   $('#editor').hidden = false
   document.body.classList.add('sheet-open')
@@ -194,21 +193,23 @@ function closeEditor() {
   document.body.classList.remove('sheet-open')
 }
 
-async function saveEditor() {
-  const btn = $<HTMLButtonElement>('#ed-save')
-  if (btn.disabled) return
-  btn.disabled = true // a double tap must not save twice
+async function saveEditor(run: boolean) {
+  const btns = [$<HTMLButtonElement>('#ed-save'), $<HTMLButtonElement>('#ed-run')]
+  if (btns.some(b => b.disabled)) return
+  for (const b of btns) b.disabled = true // a double tap must not save twice
   try {
-    await saveEditorOnce()
+    const saved = await saveEditorOnce()
+    if (saved && run) runFromPhone(saved)
   } catch (e) {
     $('#ed-status').textContent = e instanceof Error ? e.message : String(e)
   } finally {
-    btn.disabled = false
+    for (const b of btns) b.disabled = false
   }
 }
 
-async function saveEditorOnce() {
-  const say = (t: string) => { $('#ed-status').textContent = t }
+/** Saves the editor's script; returns it, or null (with the reason shown) if it can't be saved yet. */
+async function saveEditorOnce(): Promise<ScriptMeta | null> {
+  const say = (t: string) => { $('#ed-status').textContent = t; return null }
   const name = $<HTMLInputElement>('#ed-name').value.trim()
   const code = $<HTMLTextAreaElement>('#ed-code').value
   if (!name) return say('Give the script a name.')
@@ -217,9 +218,12 @@ async function saveEditorOnce() {
   const param = $<HTMLInputElement>('#ed-param').value.trim() || undefined
   const meta = editing ? { ...editing, name, param } : { id: uuid(), name, fav: false, param }
   await store.saveScript(meta, code)
+  const start = $<HTMLInputElement>('#ed-start').checked
+  if (start !== (store.startId === meta.id)) await store.setStart(start ? meta.id : '')
   closeEditor()
   renderScripts()
   await refresh()
+  return store.scripts.find(s => s.id === meta.id) ?? meta
 }
 
 async function showImports() {
@@ -268,7 +272,24 @@ function setBridgeState(kind: 'unset' | 'checking' | 'ok' | 'error', text: strin
   const s = $('#b-state')
   s.className = `status ${kind}`
   s.textContent = text
-  $('#b-remove').hidden = !store.bridge
+}
+
+/** Set up: a short summary (Test again, Change, Remove). Not set up, or changing: the setup steps and form. */
+function renderComputer() {
+  const b = store.bridge
+  $<HTMLInputElement>('#b-url').value = b?.url ?? ''
+  $<HTMLInputElement>('#b-token').value = b?.token ?? ''
+  $('#b-summary').hidden = !b || changingBridge
+  $('#b-setup').hidden = !!b && !changingBridge
+  $('#b-cancel').hidden = !b
+  $('#b-remove-slot').replaceChildren(confirmButton('Remove', async () => {
+    store.bridge = null
+    await store.saveBridge()
+    changingBridge = false
+    renderComputer()
+    $('#b-status').textContent = 'Removed. Scripts that fetch data will say they need your computer.'
+    setBridgeState('unset', 'Not set up')
+  }, 'Tap again to remove'))
 }
 
 async function checkBridge() {
@@ -276,7 +297,10 @@ async function checkBridge() {
   setBridgeState('checking', 'Checking your computer…')
   try {
     await ping()
-    setBridgeState('ok', '✓ Connected to your computer')
+    let host = ''
+    try { host = new URL(store.bridge.url).hostname } catch { /* shown without a name */ }
+    if (!/^[\d.]+$|:/.test(host)) host = host.split('.')[0] // the computer's name, not its whole tailnet address
+    setBridgeState('ok', `✓ Connected to your computer${host ? ` (${host})` : ''}`)
     $('#b-status').textContent = ''
   } catch (e) {
     setBridgeState('error', "Can't reach your computer")
@@ -313,13 +337,15 @@ export function mountPhone(root: HTMLElement) {
   $('#new').onclick = () => void openEditor(null)
   $('#import').onclick = () => void showImports()
   $('#import-close').onclick = () => { $('#import-panel').hidden = true }
-  $('#ed-save').onclick = () => void saveEditor()
+  $('#ed-save').onclick = () => void saveEditor(false)
+  $('#ed-run').onclick = () => void saveEditor(true)
   $('#ed-cancel').onclick = closeEditor
 
   $('#key-add').onclick = safe(async () => {
     const k = $<HTMLInputElement>('#key').value.trim()
     const v = $<HTMLInputElement>('#val').value
     if (!k || !v) return void ($('#key-status').textContent = 'Fill in both the name and the value.')
+    if (k === '__proto__') return void ($('#key-status').textContent = 'That name can\'t be used. Pick another.')
     store.keychain[k] = v
     await store.saveKeychain()
     $<HTMLInputElement>('#key').value = $<HTMLInputElement>('#val').value = ''
@@ -327,8 +353,6 @@ export function mountPhone(root: HTMLElement) {
     renderKeys()
   })
 
-  $<HTMLInputElement>('#b-url').value = store.bridge?.url ?? ''
-  $<HTMLInputElement>('#b-token').value = store.bridge?.token ?? ''
   $('#b-show').onclick = () => {
     const t = $<HTMLInputElement>('#b-token')
     t.type = t.type === 'password' ? 'text' : 'password'
@@ -343,16 +367,14 @@ export function mountPhone(root: HTMLElement) {
     if (!token) return void ($('#b-status').textContent = 'Paste the password the installer printed.')
     store.bridge = { url, token }
     await store.saveBridge()
+    changingBridge = false
+    renderComputer()
     $('#b-status').textContent = ''
     await checkBridge()
   })
-  $('#b-remove').onclick = safe(async () => {
-    store.bridge = null
-    await store.saveBridge()
-    $<HTMLInputElement>('#b-url').value = $<HTMLInputElement>('#b-token').value = ''
-    $('#b-status').textContent = 'Removed. Scripts that fetch data will say they need your computer.'
-    setBridgeState('unset', 'Not set up')
-  })
+  $('#b-test').onclick = () => void checkBridge()
+  $('#b-change').onclick = () => { changingBridge = true; renderComputer() }
+  $('#b-cancel').onclick = () => { changingBridge = false; renderComputer() }
 
   events.onResult = (name, r) => {
     running.delete(name)

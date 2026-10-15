@@ -6,11 +6,13 @@ import { basename, join } from 'node:path'
 import { blockCodeFromText } from '../src/runtime/lockdown.ts'
 import type { Host } from '../src/runtime/types.ts'
 
-const [file, mode, dir] = process.argv.slice(2)
+const proc = process // scripts get no `process` (it could kill processes); this harness keeps its own reference
+const [file, mode, dir] = proc.argv.slice(2)
 // As in the app's worker: before the interpreter loads, since it copies the global names then. The network stays on
 // (this harness fetches for real), and Node gets WebAssembly back afterwards for its own fetch; scripts keep the copy.
 const wasm = globalThis.WebAssembly
 blockCodeFromText()
+;(globalThis as Record<string, unknown>).process = undefined
 const { runScript, toBase64, fromBase64 } = await import('../src/runtime/scriptable.ts')
 globalThis.WebAssembly = wasm
 const hosts = new Set<string>()
@@ -37,7 +39,7 @@ const host: Host = {
   keychainChanged: () => {},
   fileChanged: () => {},
   // Live output, so compat.ts can tell a live-updating script from a stuck one when it hits the time limit.
-  show: o => process.stderr.write(`SHOW ${JSON.stringify(o)}\n`),
+  show: o => proc.stderr.write(`SHOW ${JSON.stringify(o)}\n`),
 }
 
 const modules: Record<string, string> = {}
@@ -45,7 +47,7 @@ for (const f of readdirSync(dir)) if (f.endsWith('.js')) modules[basename(f, '.j
 
 const r = await runScript(readFileSync(file, 'utf8'), host, {
   name: basename(file, '.js'), runsInApp: mode === 'app', runsInWidget: mode === 'widget', keychain: {}, files: {}, modules,
-  parameter: process.env.COMPAT_PARAM, // e.g. COMPAT_PARAM='…' npm run compat -- <folder>
+  parameter: proc.env.COMPAT_PARAM, // e.g. COMPAT_PARAM='…' npm run compat -- <folder>
 })
-process.stdout.write(JSON.stringify({ ...r, hosts: [...hosts], choices, warnings: logs }))
-process.exit(0) // don't wait for timers the script left behind
+proc.stdout.write(JSON.stringify({ ...r, hosts: [...hosts], choices, warnings: logs }))
+proc.exit(0) // don't wait for timers the script left behind

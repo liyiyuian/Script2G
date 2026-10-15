@@ -203,8 +203,22 @@ test('the interpreter gets try/finally and for-await right (sval fixes in script
     for (const i of [1, 2, 3]) { try { if (i === 2) continue; n += i } finally { n += 10 } }
     let sum = 0
     for await (const x of [Promise.resolve(1), 2, Promise.resolve(3)]) sum += x
-    console.log(a(), b(), c(), await d(), n, sum)
+    function g() { return 'from g' }
+    function e() { try { return 'kept' } finally { g(); [1, 2].map(x => x * 10) } } // calls in finally
+    async function h() { try { return 'kept' } finally { const k = () => 'arrow'; k() } }
+    const log = []
+    outer: for (let i = 0; i < 3; i++) { try { log.push(i); break outer } finally { inner: for (let j = 0; j < 2; j++) { if (j === 1) break inner } } }
+    console.log(a(), b(), c(), await d(), n, sum, e(), await h(), log.join())
   `, host, opts())
   assert.equal(r.error, undefined)
-  assert.equal(r.output.text, 'try catch finally async 34 6')
+  assert.equal(r.output.text, 'try catch finally async 34 6 kept kept 0')
+})
+
+test('names like __proto__ or constructor are not special (Keychain, importModule)', async () => {
+  const { host, calls } = fakeHost()
+  const r = await runScript(`Keychain.set('__proto__', 'x')`, host, opts())
+  assert.match(r.error ?? '', /"__proto__" can't be used/)
+  assert.deepEqual(calls.keychain, [])
+  const m = await runScript(`importModule('constructor')`, host, opts({ modules: { lib: '' } }))
+  assert.match(m.error ?? '', /there is no script named "constructor"/)
 })

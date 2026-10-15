@@ -1,16 +1,18 @@
 // Runs after `npm install`: fixes two sval 0.6.12 bugs that silently give wrong results (tests/runtime.test.ts
 // checks both). Each fix must match exactly once, so another sval version stops the install instead of shipping
 // unfixed.
-//  1. `return` inside a `try` that has a `finally` returned undefined (the finally block's result replaced it).
+//  1. `return` inside a `try` that has a `finally` returned undefined (the finally block's result replaced it). The
+//     fix also keeps the try's return value / break label, which sval stores in one shared object that any
+//     function called inside the finally block overwrites.
 //  2. `for await` over an array of promises gave the promises instead of their values.
 import { readFileSync, writeFileSync } from 'node:fs'
 
 const file = new URL('../node_modules/sval/dist/sval.js', import.meta.url)
 const fixes = [
   ['e.finalizer && (i = yield* ce(e.finalizer, t));',
-    'if (e.finalizer) { const f = yield* ce(e.finalizer, t); if (f === _ || f === C || f === k) i = f; }'],
+    'if (e.finalizer) { const res = k.RES, lab = i === _ || i === C ? i.LABEL : void 0; const f = yield* ce(e.finalizer, t); if (f === _ || f === C || f === k) i = f; else { k.RES = res; if (i === _ || i === C) i.LABEL = lab; } }'],
   ['e.finalizer && (i = fe(e.finalizer, t));',
-    'if (e.finalizer) { const f = fe(e.finalizer, t); if (f === _ || f === C || f === k) i = f; }'],
+    'if (e.finalizer) { const res = k.RES, lab = i === _ || i === C ? i.LABEL : void 0; const f = fe(e.finalizer, t); if (f === _ || f === C || f === k) i = f; else { k.RES = res; if (i === _ || i === C) i.LABEL = lab; } }'],
   [`  if (typeof Symbol == "function" && (t = e[Symbol.asyncIterator], !t && (t = e[Symbol.iterator])), t)
     return t.call(e);`,
   `  if (typeof Symbol == "function" && (t = e[Symbol.asyncIterator]))

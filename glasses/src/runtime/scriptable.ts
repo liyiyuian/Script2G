@@ -315,6 +315,7 @@ export async function runScript(source: string, host: Host, opts: RunOptions): P
       return kc[k]
     },
     set: (k: string, v: string) => {
+      if (String(k) === '__proto__') throw new Error('Keychain: "__proto__" can\'t be used as a name.')
       kc[k] = String(v)
       host.keychainChanged(k, kc[k])
     },
@@ -522,7 +523,7 @@ export async function runScript(source: string, host: Host, opts: RunOptions): P
 
   globals.importModule = (name: string) => {
     const key = String(name).replace(/\.js$/, '')
-    const src = opts.modules[key]
+    const src = hasOwn(opts.modules, key) ? opts.modules[key] : null
     if (src == null) throw new Error(`importModule: there is no script named "${key}"`)
     const module = { exports: {} }
     interpret(src, globals, module, false)

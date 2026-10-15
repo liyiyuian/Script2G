@@ -28,7 +28,7 @@ import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 TOKEN = os.environ.get("BRIDGE_TOKEN", "")
 SCRIPTS_DIR = os.path.expanduser(os.environ.get("BRIDGE_SCRIPTS_DIR", ""))
 MAX_BODY = 5 * 1024 * 1024        # request body from the phone
@@ -42,11 +42,17 @@ REDIRECTS = (301, 302, 303, 307, 308)
 WEB = ("http", "https")
 
 
+def origin(url):
+    u = urllib.parse.urlsplit(url)
+    return u.scheme, u.hostname, u.port or {"http": 80, "https": 443}.get(u.scheme)
+
+
 class Redirects(urllib.request.HTTPRedirectHandler):
-    """Follow redirects like Scriptable's Request does, but without credentials when the host changes."""
+    """Follow redirects like Scriptable's Request does, but without credentials when the origin (scheme, host or
+    port) changes."""
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         new = super().redirect_request(req, fp, code, msg, headers, newurl)
-        if new is not None and urllib.parse.urlsplit(newurl).hostname != urllib.parse.urlsplit(req.full_url).hostname:
+        if new is not None and origin(newurl) != origin(req.full_url):
             for h in ("Authorization", "Cookie"):
                 new.remove_header(h)
         return new
