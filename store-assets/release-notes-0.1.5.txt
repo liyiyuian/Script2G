@@ -13,6 +13,16 @@ REPLY TO THE REVIEW (if the portal has a notes/reply field)
 2. No more new Function: scripts are now run by a bundled JavaScript interpreter (sval, MIT), never handed to the engine as code. In the script worker, eval, the Function constructor in all its forms (including async/generator and via .constructor), string timers and WebAssembly are turned off before anything runs, so neither the app nor a script can run code from text.
 ------------------------------------------------------------------
 
+SHORT LOG (since 0.1.4)
+------------------------------------------------------------------
+- Renamed to Script2G.
+- Scripts run in a built-in interpreter, not new Function; eval and code-from-text are off.
+- Scripts can't go online directly; web requests go only through your bridge.
+- Simpler phone page and editor.
+- Bridge 0.1.2: safer redirects.
+- Tight loops run slower; everyday scripts are unchanged.
+------------------------------------------------------------------
+
 FULL LOG (since 0.1.4, which was not released; earlier versions: release-notes-0.1.4.txt)
 Review fixes:
 - Display name is now Script2G (was EvenScriptable): page title, phone page, store texts, installer messages.
@@ -74,5 +84,6 @@ Bridge 0.1.1 (security):
   every error gets a JSON answer. Negative or bogus Content-Length is refused. Log lines are escaped.
 - Redirects are followed (http/https only), dropping Authorization and Cookie when the host changes.
 - install.sh no longer installs a scriptbridge.py lying in the folder you run it from; it now says Script2G.
+- The GitHub repo is now github.com/liyiyuian/Script2G (renamed from evenScriptable; old links still work).
 To update your bridge: run the one-line installer again (it keeps your password and settings):
-  curl -fsSL https://raw.githubusercontent.com/liyiyuian/evenScriptable/main/bridge/install.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/liyiyuian/Script2G/main/bridge/install.sh | bash

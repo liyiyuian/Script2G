@@ -6,7 +6,7 @@ Copy-and-paste material for the Even Hub listing. The agent prepares it; you upl
   privacy summary, terms.
 - `tester-quickstart.txt` — ≤1000 characters; doubles as the Description for tester builds.
 - `privacy.txt` — privacy policy. Linkable once the repo is public at
-  `https://raw.githubusercontent.com/liyiyuian/evenScriptable/main/store-assets/privacy.txt`.
+  `https://raw.githubusercontent.com/liyiyuian/Script2G/main/store-assets/privacy.txt`.
 - `icon.svg` → `icon-512.png` — app icon (one green hue on dark, like the sibling apps). Uploaded in
   the portal; the manifest has no icon field. Re-export: `inkscape -w 512 -h 512 icon.svg -o icon-512.png`.
 - `screenshots/` — 576×288 captures from the real Even Hub simulator, using only the app's preloaded

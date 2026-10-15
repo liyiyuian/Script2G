@@ -33,7 +33,7 @@ not affiliated with Scriptable or its developer.
 Needs Linux with `systemd --user`, Python 3.10+, and Tailscale (logged in; your phone on the same tailnet).
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/liyiyuian/evenScriptable/main/bridge/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/liyiyuian/Script2G/main/bridge/install.sh | bash
 ```
 
 It installs a `scriptbridge` user service, publishes it with `tailscale serve --https=8447` (asks for

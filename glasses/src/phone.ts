@@ -44,7 +44,7 @@ const PAGE = `
   <div id="b-setup">
     <p class="dim">Only needed for scripts that load data from the web or from your computer. Your phone sends those requests to a small bridge on your own computer, over your own Tailscale network. Scripts that don't fetch anything work without it.</p>
     <ol class="steps">
-      <li><b>Install the bridge on your computer.</b> One command; the steps are at github.com/liyiyuian/evenScriptable (Linux, Tailscale).</li>
+      <li><b>Install the bridge on your computer.</b> One command; the steps are at github.com/liyiyuian/Script2G (Linux, Tailscale).</li>
       <li><b>Paste the address</b> the installer printed.<input id="b-url" placeholder="It starts with https and ends with :8447" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></li>
       <li><b>Paste the password</b> it printed.
         <div class="row nowrap"><input id="b-token" type="password" placeholder="Bridge password" autocapitalize="off" autocomplete="off" spellcheck="false"><button id="b-show">Show</button></div>
