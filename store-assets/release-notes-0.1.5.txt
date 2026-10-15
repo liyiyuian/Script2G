@@ -1,4 +1,4 @@
-Script2G 0.1.5 — release notes (package com.liyiyuian.evenscriptable, SDK 0.0.16; bridge 0.1.1)
+Script2G 0.1.5 — release notes (package com.liyiyuian.evenscriptable, SDK 0.0.16; bridge 0.1.2)
 First submission after 0.1.4 was rejected (2026-10-15): renamed, and scripts no longer run through new Function.
 
 HUB CHANGELOG (paste into the version's changelog field)
