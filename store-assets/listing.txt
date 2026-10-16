@@ -6,8 +6,9 @@ APP NAME
 --------
 Script2G
 (Renamed from EvenScriptable on 2026-10-15: review rejected 0.1.4 because "Even" in a name, including
-look-alikes such as 3V3N, is reserved for first-party apps. The package id com.liyiyuian.evenscriptable
-is permanent and stays.)
+look-alikes such as 3V3N, is reserved for first-party apps. Review then rejected 0.1.5 because the package
+id com.liyiyuian.evenscriptable contains "even"; since 0.1.6 the package id is com.liyiyuian.script2g,
+a new hub project.)
 
 
 SUBTITLE / TAGLINE

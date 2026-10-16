@@ -1,0 +1,21 @@
+Script2G 0.1.6 — release notes (package com.liyiyuian.script2g, SDK 0.0.16; bridge 0.1.2)
+New hub project. Replaces com.liyiyuian.evenscriptable, whose 0.1.5 was rejected (2026-10-16) only because
+the package id contains "even".
+
+HUB CHANGELOG (paste into the version's changelog field)
+------------------------------------------------------------------
+First version: run your own JavaScript scripts on your glasses; many Scriptable scripts work as they are.
+Requires Even Realities app 2.2.10 or later.
+------------------------------------------------------------------
+
+REPLY TO THE REVIEW (if the portal has a notes/reply field)
+------------------------------------------------------------------
+This replaces com.liyiyuian.evenscriptable (0.1.5 was rejected only for the package name). The package id is now com.liyiyuian.script2g, with no "even" in the package id or the app name. The app is otherwise the same as the reviewed 0.1.5: named Script2G, and scripts run in a bundled interpreter instead of new Function.
+------------------------------------------------------------------
+
+FULL LOG (since 0.1.5, which was not released; earlier: release-notes-0.1.5.txt)
+- Package id changed from com.liyiyuian.evenscriptable to com.liyiyuian.script2g (hub QA flags "even" in a
+  package id). Only app.json changed; the app code is the same as 0.1.5.
+- Because the id changed, this installs as a new app: uninstall the old one. Scripts and Keychain values saved
+  in the old app don't move over; add them again.
+- The bridge doesn't depend on the package id; bridge 0.1.2 keeps working as is.
